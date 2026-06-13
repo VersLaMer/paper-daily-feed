@@ -1252,6 +1252,14 @@
     {
       "fingerprint": "b96bc712c1a7c6d3b6a3872331a4fd3ff92fbe99a1369c2a3f34ce3cdae53bfc",
       "deliveredAt": "2026-06-12T23:50:00.076Z"
+    },
+    {
+      "fingerprint": "2128914b33532cee90a154462861939fe1c31a3823f1925eaec3301979c77065",
+      "deliveredAt": "2026-06-13T23:21:28.236Z"
+    },
+    {
+      "fingerprint": "19d40e45c2595fe810120137e9dd186188b23efd9487cf60e4cadcf2ed2fb52e",
+      "deliveredAt": "2026-06-13T23:21:28.236Z"
     }
   ]
 }

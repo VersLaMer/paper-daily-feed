@@ -2,6 +2,7 @@ import { describe, expect, it, spyOn } from "bun:test";
 import packageMetadata from "../package.json";
 import {
   fetchDailyRomance,
+  fetchFavQsRomance,
   fetchHitokotoRomance,
   fetchZenQuoteRomance
 } from "../src/daily-romance.js";
@@ -61,6 +62,32 @@ describe("daily romance sources", () => {
     });
   });
 
+  it("accepts a compact English quotation from FavQs", async () => {
+    const romance = await fetchFavQsRomance({
+      fetch: (async (input, init) => {
+        expect(String(input)).toBe("https://favqs.com/api/qotd");
+        expect(init?.headers).toEqual({
+          "User-Agent": `paper-daily-feed/${packageMetadata.version} (${packageMetadata.homepage})`
+        });
+        return Response.json({
+          quote: {
+            body: "Success is never final, failure is never fatal.",
+            author: "John Wooden",
+            url: "https://favqs.com/quotes/john-wooden/11857-success-is-ne-"
+          }
+        });
+      }) as typeof fetch
+    });
+
+    expect(romance).toEqual({
+      text: "Success is never final, failure is never fatal.",
+      author: "John Wooden",
+      sourceTitle: "",
+      sourceUrl: "https://favqs.com/quotes/john-wooden/11857-success-is-ne-",
+      sourceName: "FavQs"
+    });
+  });
+
   it("rejects ZenQuotes text that would crowd the email header", async () => {
     await expect(
       fetchZenQuoteRomance({
@@ -90,7 +117,7 @@ describe("daily romance sources", () => {
     ).rejects.toThrow("email layout");
   });
 
-  it("chooses each source with equal probability and falls back to the other source", async () => {
+  it("falls back to the other English source before changing language", async () => {
     const calls: string[] = [];
     const infoSpy = spyOn(console, "info").mockImplementation(() => undefined);
     try {
@@ -98,6 +125,15 @@ describe("daily romance sources", () => {
         const url = String(input);
         calls.push(url);
         if (url.includes("zenquotes")) return new Response("unavailable", { status: 503 });
+        if (url.includes("favqs")) {
+          return Response.json({
+            quote: {
+              body: "Success is never final, failure is never fatal.",
+              author: "John Wooden",
+              url: "https://favqs.com/quotes/john-wooden/11857-success-is-ne-"
+            }
+          });
+        }
         return Response.json({
           hitokoto: "今晚的月色真美。",
           from: "网络",
@@ -113,10 +149,10 @@ describe("daily romance sources", () => {
 
       expect(calls).toEqual([
         "https://zenquotes.io/api/random",
-        "https://v1.hitokoto.cn/?encode=json&max_length=42"
+        "https://favqs.com/api/qotd"
       ]);
-      expect(romance?.text).toBe("今晚的月色真美。");
-      expect(infoSpy).toHaveBeenCalledWith("Fetched daily romance from 一言.");
+      expect(romance?.text).toBe("Success is never final, failure is never fatal.");
+      expect(infoSpy).toHaveBeenCalledWith("Fetched daily romance from FavQs.");
     } finally {
       infoSpy.mockRestore();
     }

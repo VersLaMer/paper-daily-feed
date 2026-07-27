@@ -5,8 +5,8 @@ const HITOKOTO_SOURCE = "https://hitokoto.cn";
 const HITOKOTO_MAX_LENGTH = 42;
 const ZENQUOTES_API = "https://zenquotes.io/api/random";
 const ZENQUOTES_SOURCE = "https://zenquotes.io/";
-const ZENQUOTES_MAX_LENGTH = 96;
-const ZENQUOTES_MAX_WORDS = 18;
+const ENGLISH_QUOTE_MAX_LENGTH = 96;
+const ENGLISH_QUOTE_MAX_WORDS = 18;
 const FAVQS_API = "https://favqs.com/api/qotd";
 const FAVQS_SOURCE = "https://favqs.com/";
 const REQUEST_TIMEOUT_MS = 8_000;
@@ -114,8 +114,8 @@ export async function fetchZenQuoteRomance(
     text: compactText(
       data.q,
       "ZenQuotes",
-      ZENQUOTES_MAX_LENGTH,
-      ZENQUOTES_MAX_WORDS
+      ENGLISH_QUOTE_MAX_LENGTH,
+      ENGLISH_QUOTE_MAX_WORDS
     ),
     author,
     sourceTitle: "",
@@ -144,8 +144,8 @@ export async function fetchFavQsRomance(
     text: compactText(
       data.body,
       "FavQs",
-      ZENQUOTES_MAX_LENGTH,
-      ZENQUOTES_MAX_WORDS
+      ENGLISH_QUOTE_MAX_LENGTH,
+      ENGLISH_QUOTE_MAX_WORDS
     ),
     author,
     sourceTitle: "",

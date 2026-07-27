@@ -7,6 +7,8 @@ const ZENQUOTES_API = "https://zenquotes.io/api/random";
 const ZENQUOTES_SOURCE = "https://zenquotes.io/";
 const ZENQUOTES_MAX_LENGTH = 96;
 const ZENQUOTES_MAX_WORDS = 18;
+const FAVQS_API = "https://favqs.com/api/qotd";
+const FAVQS_SOURCE = "https://favqs.com/";
 const REQUEST_TIMEOUT_MS = 8_000;
 const USER_AGENT = `paper-daily-feed/${packageMetadata.version} (${packageMetadata.homepage})`;
 
@@ -122,14 +124,49 @@ export async function fetchZenQuoteRomance(
   };
 }
 
+export async function fetchFavQsRomance(
+  options: SourceOptions = {}
+): Promise<DailyRomance> {
+  const payload = await responseJson(FAVQS_API, "FavQs", options.fetch ?? fetch);
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    throw new Error("FavQs returned an invalid response.");
+  }
+
+  const quote = (payload as Record<string, unknown>).quote;
+  if (!quote || typeof quote !== "object" || Array.isArray(quote)) {
+    throw new Error("FavQs returned an invalid response.");
+  }
+
+  const data = quote as Record<string, unknown>;
+  const author = optionalText(data.author);
+  if (!author) throw new Error("FavQs returned no author.");
+  return {
+    text: compactText(
+      data.body,
+      "FavQs",
+      ZENQUOTES_MAX_LENGTH,
+      ZENQUOTES_MAX_WORDS
+    ),
+    author,
+    sourceTitle: "",
+    sourceUrl: optionalText(data.url) || FAVQS_SOURCE,
+    sourceName: "FavQs"
+  };
+}
+
 export async function fetchDailyRomance(
   options: DailyRomanceOptions = {}
 ): Promise<DailyRomance | null> {
   const sourceOptions = { fetch: options.fetch };
-  const sources =
-    (options.random ?? Math.random)() < 0.5
-      ? [fetchHitokotoRomance, fetchZenQuoteRomance]
-      : [fetchZenQuoteRomance, fetchHitokotoRomance];
+  const random = options.random ?? Math.random;
+  const preferChinese = random() < 0.5;
+  const englishSources =
+    random() < 0.5
+      ? [fetchFavQsRomance, fetchZenQuoteRomance]
+      : [fetchZenQuoteRomance, fetchFavQsRomance];
+  const sources = preferChinese
+    ? [fetchHitokotoRomance, ...englishSources]
+    : [...englishSources, fetchHitokotoRomance];
 
   for (const source of sources) {
     try {

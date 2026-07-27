@@ -151,6 +151,9 @@
   },
   "dailyRomance": {
     // For daily romance inspiration. Can skip. Enabled by default.
+    // Sources: Hitokoto (Chinese), ZenQuotes and FavQs (English).
+    // Thanks to https://hitokoto.cn, https://zenquotes.io and https://favqs.com
+    // for providing their public quotation APIs.
     "enabled": true
   },
   "delivery": {

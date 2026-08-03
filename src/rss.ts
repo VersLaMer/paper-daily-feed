@@ -538,14 +538,25 @@ function isRetryableRssError(error: unknown): boolean {
   return message.startsWith("Expected RSS/XML feed but received ");
 }
 
-function publisherBlockReason(error: unknown): string | undefined {
+function isLikelyTransportFailure(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /(?:socket .*closed|socket hang up|und_err_socket|connection .*closed|econnreset)/i.test(
+    message
+  );
+}
+
+function publisherBlockReason(error: unknown, source?: FeedSource): string | undefined {
   const message = error instanceof Error ? error.message : String(error);
   const status = message.match(/^Status code (\d+)$/)?.[1];
   if (status) {
     const code = Number(status);
-    if (code === 403 || code === 429) {
+    if (code === 403 || code === 418 || code === 429) {
       return "publisher rejected request";
     }
+  }
+
+  if (source && feedPublisher(source) === "IEEE" && isLikelyTransportFailure(error)) {
+    return "publisher connection rejected request";
   }
 
   if (message.startsWith("Expected RSS/XML feed but received ")) {
@@ -603,7 +614,7 @@ async function fetchFeedSourceWithRetries(
       };
     } catch (error) {
       lastError = error;
-      if (options.deferPublisherBlocks && publisherBlockReason(error)) {
+      if (options.deferPublisherBlocks && publisherBlockReason(error, source)) {
         return {
           status: "rejected",
           error
@@ -727,7 +738,7 @@ export async function fetchFeedSources(
       continue;
     }
 
-    if (publisherBlockReason(result.error)) {
+    if (publisherBlockReason(result.error, source)) {
       deferred.push({ source, error: result.error });
       continue;
     }
@@ -753,7 +764,7 @@ export async function fetchFeedSources(
       continue;
     }
 
-    if (curlFallbackEnabled && publisherBlockReason(result.error)) {
+    if (curlFallbackEnabled && publisherBlockReason(result.error, source)) {
       try {
         const fallbackPapers = await curlFetcher(source);
         succeededSourceCount += 1;
@@ -790,7 +801,8 @@ export async function fetchFeedSources(
       }
     }
 
-    const blockReason = publisherBlockReason(result.error) ?? publisherBlockReason(originalError);
+    const blockReason =
+      publisherBlockReason(result.error, source) ?? publisherBlockReason(originalError, source);
     progress.step(blockReason ? `${logLabel}: 0 papers (${blockReason})` : `${logLabel} failed: ${String(result.error)}`);
   }
 

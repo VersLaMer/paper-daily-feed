@@ -748,6 +748,127 @@ describe("normalizeFeedItem", () => {
     );
   });
 
+  it("uses the publisher-block fallback when IEEE responds with status 418", async () => {
+    const logSpy = spyOn(console, "log").mockImplementation(() => undefined);
+    const curlFetcher = mock(async () => [
+      {
+        journal: "IEEE TGRS",
+        title: "IEEE paper recovered by curl",
+        abstract: "",
+        url: "https://example.test/ieee-paper",
+        publishedAt: new Date("2026-08-03")
+      }
+    ]);
+    stubFetch(mock(async () => new Response("blocked", { status: 418 })));
+
+    const papers = await fetchJournalFeeds(
+      [
+        {
+          kind: "catalog",
+          name: "IEEE TGRS",
+          rss: "https://ieeexplore.ieee.org/rss/TOC36.XML",
+          issn: "1558-0644"
+        }
+      ],
+      {
+        delayMs: 0,
+        retryCount: 0,
+        deferredRetryDelayMs: 0,
+        curlFallback: true,
+        curlFetcher
+      }
+    );
+
+    expect(curlFetcher).toHaveBeenCalledTimes(1);
+    expect(papers).toMatchObject([{ title: "IEEE paper recovered by curl" }]);
+    expect(logSpy.mock.calls.flat().join("\n")).toContain(
+      "[IEEE] IEEE TGRS: 1 papers (curl fallback)"
+    );
+  });
+
+  it("uses the publisher-block fallback when IEEE closes the fetch connection", async () => {
+    const logSpy = spyOn(console, "log").mockImplementation(() => undefined);
+    const curlFetcher = mock(async () => [
+      {
+        journal: "IEEE TGRS",
+        title: "IEEE paper recovered after connection close",
+        abstract: "",
+        url: "https://example.test/ieee-connection-paper",
+        publishedAt: new Date("2026-08-03")
+      }
+    ]);
+    stubFetch(
+      mock(async () => {
+        throw new TypeError("The socket connection was closed unexpectedly");
+      })
+    );
+
+    const papers = await fetchJournalFeeds(
+      [{ kind: "catalog", name: "IEEE TGRS", rss: "https://ieeexplore.ieee.org/rss/TOC36.XML" }],
+      {
+        delayMs: 0,
+        retryCount: 0,
+        deferredRetryDelayMs: 0,
+        curlFallback: true,
+        curlFetcher
+      }
+    );
+
+    expect(curlFetcher).toHaveBeenCalledTimes(1);
+    expect(papers).toMatchObject([{ title: "IEEE paper recovered after connection close" }]);
+    expect(logSpy.mock.calls.flat().join("\n")).toContain(
+      "[IEEE] IEEE TGRS: 1 papers (curl fallback)"
+    );
+  });
+
+  it("uses Crossref after IEEE blocks fetch and curl", async () => {
+    const logSpy = spyOn(console, "log").mockImplementation(() => undefined);
+    const curlFetcher = mock(async () => {
+      throw new Error("curl: (22) The requested URL returned error: 418");
+    });
+    const crossrefFetcher = mock(async () => [
+      {
+        doi: "10.1109/TGRS.2026.1234567",
+        title: "IEEE paper recovered from Crossref",
+        authors: ["Ada Lovelace"],
+        publishedAt: new Date("2026-08-01"),
+        url: "https://doi.org/10.1109/TGRS.2026.1234567"
+      }
+    ]);
+    stubFetch(mock(async () => new Response("blocked", { status: 418 })));
+
+    const papers = await fetchJournalFeeds(
+      [
+        {
+          kind: "catalog",
+          name: "IEEE TGRS",
+          rss: "https://ieeexplore.ieee.org/rss/TOC36.XML",
+          issn: "1558-0644"
+        }
+      ],
+      {
+        delayMs: 0,
+        retryCount: 0,
+        deferredRetryDelayMs: 0,
+        curlFallback: true,
+        curlFetcher,
+        crossrefFetcher
+      }
+    );
+
+    expect(crossrefFetcher).toHaveBeenCalledWith("1558-0644");
+    expect(papers).toMatchObject([
+      {
+        journal: "IEEE TGRS",
+        title: "IEEE paper recovered from Crossref",
+        doi: "10.1109/TGRS.2026.1234567"
+      }
+    ]);
+    expect(logSpy.mock.calls.flat().join("\n")).toContain(
+      "[IEEE] IEEE TGRS: 1 papers (Crossref fallback)"
+    );
+  });
+
   it("runs the default curl fallback through Bun.spawn", async () => {
     const logSpy = spyOn(console, "log").mockImplementation(() => undefined);
     const rss = `<?xml version="1.0"?>

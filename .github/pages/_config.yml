@@ -1,0 +1,25 @@
+title: paper-daily-feed
+description: Smart daily feeds into your inbox, tailored to your research interests.
+lang: en-US
+url: https://nehsgnail.github.io
+baseurl: /paper-daily-feed
+repository: nehSgnaiL/paper-daily-feed
+repository_url: https://github.com/nehSgnaiL/paper-daily-feed
+theme: jekyll-theme-primer
+
+plugins:
+  - jekyll-seo-tag
+
+defaults:
+  - scope:
+      path: ""
+    values:
+      layout: default
+      image:
+        path: /paper-daily-feed/docs/email_preview_example.svg
+        alt: Preview of a paper-daily-feed email
+
+exclude:
+  - build-source.mjs
+  - validate.mjs
+  - .build

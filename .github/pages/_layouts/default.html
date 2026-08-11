@@ -17,7 +17,9 @@
         const syncPictures = () => {
           const theme = root.dataset.theme;
           document
-            .querySelectorAll("picture source[media*='prefers-color-scheme']")
+            .querySelectorAll(
+              "picture source[media*='prefers-color-scheme'], picture source[data-page-media]",
+            )
             .forEach((source) => {
               source.dataset.pageMedia ||= source.media;
               source.media = theme

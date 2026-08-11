@@ -61,7 +61,7 @@ rejectMatch(
 );
 requireMatch(
   layout,
-  /picture source\[media\*='prefers-color-scheme'\][\s\S]*?MutationObserver[\s\S]*?data-theme/,
+  /picture source\[media\*='prefers-color-scheme'\][\s\S]*?source\[data-page-media\][\s\S]*?MutationObserver[\s\S]*?data-theme/,
   "Layout must synchronize README picture sources with the Page theme.",
 );
 
@@ -94,6 +94,11 @@ requireMatch(
   styles,
   /\.markdown-body \.repo-button[\s\S]*?white-space:\s*nowrap/,
   "Repository actions must keep their mobile labels aligned.",
+);
+requireMatch(
+  styles,
+  /@media \(max-width: 600px\)[\s\S]*?\.repo-actions[\s\S]*?gap:\s*8px[\s\S]*?justify-content:\s*flex-start[\s\S]*?\.markdown-body \.repo-button[\s\S]*?flex:\s*0 1 auto[\s\S]*?padding:\s*8px 10px/,
+  "Mobile repository actions must retain compact content-width sizing.",
 );
 requireMatch(
   styles,

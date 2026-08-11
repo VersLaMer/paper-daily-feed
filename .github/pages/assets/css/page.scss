@@ -249,7 +249,7 @@ html[data-theme="dark"] {
 @media (max-width: 600px) {
   .repo-actions {
     gap: 8px;
-    justify-content: flex-start;
+    justify-content: space-between;
     margin-bottom: 24px;
   }
 

@@ -20,6 +20,10 @@
   --repo-muted: #8b949e;
   --repo-link: #58a6ff;
   --repo-border: #30363d;
+
+  .markdown-body .highlight span {
+    color: var(--repo-text);
+  }
 }
 
 html {
@@ -202,9 +206,11 @@ shen-site-footer {
   margin-bottom: 16px;
 }
 
+.markdown-body .highlight pre,
 .markdown-body pre,
 .markdown-body code,
 .markdown-body details {
+  color: var(--repo-text);
   border-color: var(--repo-border);
   background: var(--repo-surface);
 }

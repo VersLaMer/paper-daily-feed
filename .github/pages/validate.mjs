@@ -54,6 +54,11 @@ requireMatch(
   /href="\{\{ site\.url \}\}\/project\/"/,
   "Layout must link back to the portfolio project page.",
 );
+requireMatch(
+  layout,
+  /class="repo-button repo-button-primary"[\s\S]*?href="\{\{ site\.repository_url \}\}"[\s\S]*?target="_blank"[\s\S]*?rel="noopener noreferrer"/,
+  "The GitHub repository action must open safely in a new tab.",
+);
 rejectMatch(
   layout,
   /\b(?:postMessage|MessageEvent)\b|\/shared\/(?!site-shell\.js)/i,
@@ -68,6 +73,11 @@ requireMatch(
   layout,
   /customElements\.whenDefined\("shen-site-header"\)[\s\S]*?site-header-ready/,
   "Layout must release the stable header slot after the shared header loads.",
+);
+requireMatch(
+  layout,
+  /addEventListener\("pageshow"[\s\S]*?event\.persisted[\s\S]*?shen-site-header, shen-site-footer[\s\S]*?frame\.src\s*=\s*frame\.src/,
+  "Layout must restore shared header and footer frames after Safari history-cache navigation.",
 );
 requireMatch(
   layout,

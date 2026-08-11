@@ -97,7 +97,7 @@ requireMatch(
 );
 requireMatch(
   styles,
-  /@media \(max-width: 600px\)[\s\S]*?\.repo-actions[\s\S]*?gap:\s*8px[\s\S]*?justify-content:\s*flex-start[\s\S]*?\.markdown-body \.repo-button[\s\S]*?flex:\s*0 1 auto[\s\S]*?padding:\s*8px 10px/,
+  /@media \(max-width: 600px\)[\s\S]*?\.repo-actions[\s\S]*?gap:\s*8px[\s\S]*?justify-content:\s*space-between[\s\S]*?\.markdown-body \.repo-button[\s\S]*?flex:\s*0 1 auto[\s\S]*?padding:\s*8px 10px/,
   "Mobile repository actions must retain compact content-width sizing.",
 );
 requireMatch(

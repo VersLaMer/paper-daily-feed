@@ -248,13 +248,15 @@ html[data-theme="dark"] {
 
 @media (max-width: 600px) {
   .repo-actions {
+    gap: 8px;
+    justify-content: flex-start;
     margin-bottom: 24px;
   }
 
-  .repo-button {
-    flex: 1 1 0;
+  .markdown-body .repo-button {
+    flex: 0 1 auto;
     justify-content: center;
-    padding: 8px 12px;
+    padding: 8px 10px;
     text-align: center;
   }
 

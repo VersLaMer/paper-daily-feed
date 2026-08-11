@@ -59,6 +59,11 @@ rejectMatch(
   /\b(?:postMessage|MessageEvent)\b|\/shared\/(?!site-shell\.js)/i,
   "Layout must not duplicate the shared shell.",
 );
+requireMatch(
+  layout,
+  /picture source\[media\*='prefers-color-scheme'\][\s\S]*?MutationObserver[\s\S]*?data-theme/,
+  "Layout must synchronize README picture sources with the Page theme.",
+);
 
 requireMatch(
   styles,
@@ -84,6 +89,11 @@ requireMatch(
   styles,
   /\.repo-button-primary[\s\S]*?linear-gradient\(/,
   "The primary repository action must retain the compact portfolio treatment.",
+);
+requireMatch(
+  styles,
+  /\.markdown-body \.repo-button[\s\S]*?white-space:\s*nowrap/,
+  "Repository actions must keep their mobile labels aligned.",
 );
 requireMatch(
   styles,

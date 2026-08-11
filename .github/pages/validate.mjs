@@ -178,6 +178,11 @@ requireMatch(
   "Jekyll base URL must match the project page.",
 );
 requireMatch(
+  config,
+  /^\s*path:\s*\/docs\/email_preview_example\.svg\s*$/m,
+  "SEO preview paths must be relative to the Pages base URL.",
+);
+requireMatch(
   workflow,
   /node \.github\/pages\/build-source\.mjs/,
   "Pages workflow must prepare the isolated source directory.",
@@ -221,6 +226,11 @@ for (const generatedReadme of generatedReadmes) {
     generatedReadme,
     /<details markdown="1">/,
     "Details blocks must opt into Kramdown parsing.",
+  );
+  rejectMatch(
+    generatedReadme,
+    /\]\((?!#|https?:\/\/|mailto:|tel:)[^)]+\.(?:md|jsonc|ya?ml)\)/i,
+    "Generated README pages must not retain relative links to repository source files.",
   );
 }
 

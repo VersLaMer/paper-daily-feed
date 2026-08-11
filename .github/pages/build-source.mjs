@@ -38,6 +38,7 @@ function prepareReadme(relativePath, permalink) {
     .replaceAll("(../../settings/", `(${repositoryUrl}/settings/`)
     .replaceAll("(../../actions", `(${repositoryUrl}/actions`)
     .replaceAll("(./.github/", `(${repositoryUrl}/blob/main/.github/`)
+    .replaceAll("(./config/", `(${repositoryUrl}/blob/main/config/`)
     .replaceAll(":email:", "Email · ")
     .replaceAll(":closed_book:", "Zotero · ")
     .replaceAll(":robot:", "AI · ")

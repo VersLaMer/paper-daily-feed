@@ -16,7 +16,7 @@ defaults:
     values:
       layout: default
       image:
-        path: /paper-daily-feed/docs/email_preview_example.svg
+        path: /docs/email_preview_example.svg
         alt: Preview of a paper-daily-feed email
 
 exclude:

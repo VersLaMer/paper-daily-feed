@@ -22,6 +22,9 @@ const workflow = fs.readFileSync(
   "utf8",
 );
 const errors = [];
+const generatedReadmes = ["index.md", "README.zh-CN.md"].map((file) =>
+  fs.readFileSync(path.join(sourceDirectory, file), "utf8"),
+);
 
 function requireMatch(source, pattern, message) {
   if (!pattern.test(source)) errors.push(message);
@@ -72,6 +75,16 @@ requireMatch(
   /> \.repo-actions \+ div\[align="center"\]/,
   "Styles must target the README hero after the repository actions.",
 );
+requireMatch(
+  styles,
+  /\.markdown-body table tr[\s\S]*?background:\s*var\(--repo-bg\)/,
+  "Table rows must use a theme-aware background.",
+);
+requireMatch(
+  styles,
+  /\.repo-button-primary[\s\S]*?linear-gradient\(/,
+  "The primary repository action must retain the compact portfolio treatment.",
+);
 for (const match of styles.matchAll(/--([\w-]+)\s*:/g)) {
   if (!match[1].startsWith("repo-"))
     errors.push(
@@ -116,6 +129,19 @@ for (const generatedPath of [
   if (!fs.existsSync(path.join(sourceDirectory, generatedPath))) {
     errors.push(`Generated Pages source is missing ${generatedPath}.`);
   }
+}
+
+for (const generatedReadme of generatedReadmes) {
+  rejectMatch(
+    generatedReadme,
+    /:(?:email|closed_book|robot):|> \[!TIP\]/,
+    "Generated pages must not expose unsupported GitHub Markdown markers.",
+  );
+  requireMatch(
+    generatedReadme,
+    /<details markdown="1">/,
+    "Details blocks must opt into Kramdown parsing.",
+  );
 }
 
 if (errors.length > 0) {

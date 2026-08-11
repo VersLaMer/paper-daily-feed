@@ -29,11 +29,20 @@ function prepareReadme(relativePath, permalink) {
     path.join(repositoryRoot, relativePath),
     "utf8",
   );
+  const tipLabel = relativePath === "README.zh-CN.md" ? "提示" : "Tip";
   const pageContent = source
-    .replaceAll("(./README.md)", "(./)")
+    .replace(
+      "[English](./README.md) | [简体中文](./README.zh-CN.md)",
+      '<nav class="language-switcher" aria-label="Language"><a href="./">English</a><span aria-hidden="true">·</span><a href="./README.zh-CN.html">简体中文</a></nav>',
+    )
     .replaceAll("(../../settings/", `(${repositoryUrl}/settings/`)
     .replaceAll("(../../actions", `(${repositoryUrl}/actions`)
-    .replaceAll("(./.github/", `(${repositoryUrl}/blob/main/.github/`);
+    .replaceAll("(./.github/", `(${repositoryUrl}/blob/main/.github/`)
+    .replaceAll(":email:", "Email · ")
+    .replaceAll(":closed_book:", "Zotero · ")
+    .replaceAll(":robot:", "AI · ")
+    .replaceAll("> [!TIP]", `> **${tipLabel}:**`)
+    .replaceAll("<details close>", '<details markdown="1">');
 
   return `---\nlayout: default\npermalink: ${permalink}\n---\n\n${pageContent}`;
 }

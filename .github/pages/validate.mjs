@@ -132,6 +132,11 @@ requireMatch(
 );
 requireMatch(
   styles,
+  /html\s*\{[\s\S]*?background-color:\s*var\(--repo-bg\)[\s\S]*?shen-site-header\s*\{[\s\S]*?position:\s*sticky[\s\S]*?top:\s*0[\s\S]*?background-color:\s*var\(--repo-bg\)/,
+  "The root canvas and sticky header must expose the active theme background to the iOS system status bar.",
+);
+requireMatch(
+  styles,
   /\.markdown-body \.highlight pre[\s\S]*?background:\s*var\(--repo-surface\)/,
   "Highlighted code blocks must use a theme-aware surface.",
 );

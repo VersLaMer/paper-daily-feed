@@ -64,6 +64,11 @@ requireMatch(
   /picture source\[media\*='prefers-color-scheme'\][\s\S]*?source\[data-page-media\][\s\S]*?MutationObserver[\s\S]*?data-theme/,
   "Layout must synchronize README picture sources with the Page theme.",
 );
+requireMatch(
+  layout,
+  /customElements\.whenDefined\("shen-site-header"\)[\s\S]*?site-header-ready/,
+  "Layout must release the stable header slot after the shared header loads.",
+);
 
 requireMatch(
   styles,
@@ -92,13 +97,18 @@ requireMatch(
 );
 requireMatch(
   styles,
-  /\.markdown-body \.repo-button[\s\S]*?white-space:\s*nowrap/,
-  "Repository actions must keep their mobile labels aligned.",
+  /\.markdown-body \.repo-button[\s\S]*?var\(--repo-button-border\)[\s\S]*?var\(--repo-button-bg\)[\s\S]*?backdrop-filter:\s*blur\(20px\)[\s\S]*?var\(--repo-button-shadow\)/,
+  "Repository actions must retain the reference glass treatment.",
 );
 requireMatch(
   styles,
-  /@media \(max-width: 600px\)[\s\S]*?\.repo-actions[\s\S]*?gap:\s*8px[\s\S]*?justify-content:\s*space-between[\s\S]*?\.markdown-body \.repo-button[\s\S]*?flex:\s*0 1 auto[\s\S]*?padding:\s*8px 10px/,
+  /@media \(max-width: 600px\)[\s\S]*?\.repo-actions[\s\S]*?justify-content:\s*space-between[\s\S]*?\.markdown-body \.repo-button[\s\S]*?flex:\s*0 0 auto[\s\S]*?padding:\s*0\.45rem 0\.625rem[\s\S]*?font-size:\s*0\.8125rem/,
   "Mobile repository actions must retain compact content-width sizing.",
+);
+requireMatch(
+  styles,
+  /shen-site-header[\s\S]*?height:\s*73px[\s\S]*?@media \(max-width: 639px\)[\s\S]*?height:\s*101px/,
+  "Shared header space must be stable while its iframe loads.",
 );
 requireMatch(
   styles,

@@ -11,6 +11,10 @@
   --repo-muted: #57606a;
   --repo-link: #0969da;
   --repo-border: #d0d7de;
+  --repo-button-bg: rgba(255, 255, 255, 0.7);
+  --repo-button-border: rgba(0, 0, 0, 0.1);
+  --repo-button-shadow: rgba(0, 0, 0, 0.1);
+  --repo-button-link: #007aff;
 }
 
 @mixin repo-dark-theme {
@@ -20,6 +24,10 @@
   --repo-muted: #8b949e;
   --repo-link: #58a6ff;
   --repo-border: #30363d;
+  --repo-button-bg: rgba(28, 28, 30, 0.7);
+  --repo-button-border: rgba(255, 255, 255, 0.15);
+  --repo-button-shadow: rgba(0, 0, 0, 0.3);
+  --repo-button-link: #0a84ff;
 
   .markdown-body .highlight span {
     color: var(--repo-text);
@@ -43,6 +51,16 @@ shen-site-footer {
   width: 100%;
 }
 
+shen-site-header {
+  height: 73px;
+  overflow: hidden;
+}
+
+shen-site-header.site-header-ready {
+  height: auto;
+  overflow: visible;
+}
+
 .markdown-body {
   box-sizing: border-box;
   width: 100%;
@@ -59,7 +77,7 @@ shen-site-footer {
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 28px;
+  margin-bottom: 24px;
 }
 
 .markdown-body .repo-button {
@@ -67,19 +85,28 @@ shen-site-footer {
   box-sizing: border-box;
   padding: 8px 16px;
   align-items: center;
-  border: 1px solid var(--repo-border);
+  border: 1px solid var(--repo-button-border);
   border-radius: 16px;
-  color: var(--repo-link);
-  background: var(--repo-surface);
+  color: var(--repo-button-link);
+  background: var(--repo-button-bg);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(180%);
+  box-shadow:
+    0 8px 32px var(--repo-button-shadow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
   font-size: 14px;
   font-weight: 400;
   line-height: 20px;
   text-decoration: none !important;
-  white-space: nowrap;
+  transition:
+    transform 0.16s ease-out,
+    box-shadow 0.2s ease-out,
+    background-color 0.16s ease,
+    border-color 0.16s ease;
 }
 
-.markdown-body .repo-button:hover {
-  background: var(--repo-bg);
+.markdown-body .repo-button:visited {
+  color: var(--repo-button-link);
 }
 
 .markdown-body .repo-button-primary {
@@ -90,19 +117,29 @@ shen-site-footer {
     rgba(0, 122, 255, 0.9),
     rgba(0, 122, 255, 0.7)
   );
-  box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
   font-weight: 600;
 }
 
 .markdown-body .repo-button-primary:hover {
   color: #ffffff !important;
-  background: linear-gradient(
-    135deg,
-    rgba(0, 122, 255, 1),
-    rgba(0, 122, 255, 0.8)
-  );
+}
+
+.markdown-body .repo-button-primary:visited {
+  color: #ffffff !important;
+}
+
+.markdown-body .repo-button:hover {
+  box-shadow:
+    0 12px 40px var(--repo-button-shadow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
+}
+
+.markdown-body .repo-button:active {
+  box-shadow:
+    0 4px 16px var(--repo-button-shadow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  transform: scale(0.97);
 }
 
 .markdown-body .repo-button:focus-visible {
@@ -248,15 +285,15 @@ html[data-theme="dark"] {
 
 @media (max-width: 600px) {
   .repo-actions {
-    gap: 8px;
     justify-content: space-between;
     margin-bottom: 24px;
   }
 
   .markdown-body .repo-button {
-    flex: 0 1 auto;
+    flex: 0 0 auto;
     justify-content: center;
-    padding: 8px 10px;
+    padding: 0.45rem 0.625rem;
+    font-size: 0.8125rem;
     text-align: center;
   }
 
@@ -273,6 +310,12 @@ html[data-theme="dark"] {
   .markdown-body summary {
     margin: 0 -12px;
     padding: 12px;
+  }
+}
+
+@media (max-width: 639px) {
+  shen-site-header:not(.site-header-ready) {
+    height: 101px;
   }
 }
 

@@ -34,6 +34,24 @@
           attributeFilter: ["data-theme"],
         });
         document.addEventListener("DOMContentLoaded", syncPictures);
+
+        customElements.whenDefined("shen-site-header").then(() => {
+          const header = document.querySelector("shen-site-header");
+          const frame = header?.shadowRoot?.firstElementChild;
+          const ready = () => {
+            if (frame.contentDocument?.URL === "about:blank") return;
+            frame.removeEventListener("load", ready);
+            const release = () => {
+              if (frame.offsetHeight !== header.offsetHeight) {
+                requestAnimationFrame(release);
+                return;
+              }
+              header.classList.add("site-header-ready");
+            };
+            requestAnimationFrame(release);
+          };
+          frame?.addEventListener("load", ready);
+        });
       })();
     </script>
   </head>

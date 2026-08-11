@@ -76,6 +76,16 @@ requireMatch(
 );
 requireMatch(
   layout,
+  /localStorage\.getItem\("theme"\)[\s\S]*?document\.documentElement\.dataset\.theme[\s\S]*?<meta[\s\S]*?name="theme-color"/,
+  "Layout must restore the selected theme before parsing mobile status-bar colors.",
+);
+requireMatch(
+  layout,
+  /data-theme-color="dark"[\s\S]*?syncThemeColors[\s\S]*?meta\.media[\s\S]*?MutationObserver[\s\S]*?attributeFilter:\s*\["data-theme"\]/,
+  "Layout must keep mobile status-bar colors synchronized with theme changes.",
+);
+requireMatch(
+  layout,
   /shadowRoot\?\.querySelector\("\[src\]"\)/,
   "Layout must observe the shared header frame instead of its style element.",
 );

@@ -11,6 +11,29 @@
       href="{{ '/assets/css/page.css?v=' | append: site.github.build_revision | relative_url }}"
     />
     <script src="/shared/site-shell.js" defer></script>
+    <script>
+      (() => {
+        const root = document.documentElement;
+        const syncPictures = () => {
+          const theme = root.dataset.theme;
+          document
+            .querySelectorAll("picture source[media*='prefers-color-scheme']")
+            .forEach((source) => {
+              source.dataset.pageMedia ||= source.media;
+              source.media = theme
+                ? source.dataset.pageMedia.includes(theme)
+                  ? "all"
+                  : "not all"
+                : source.dataset.pageMedia;
+            });
+        };
+        new MutationObserver(syncPictures).observe(root, {
+          attributes: true,
+          attributeFilter: ["data-theme"],
+        });
+        document.addEventListener("DOMContentLoaded", syncPictures);
+      })();
+    </script>
   </head>
   <body>
     <shen-site-header></shen-site-header>

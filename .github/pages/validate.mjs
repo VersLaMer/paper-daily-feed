@@ -85,6 +85,16 @@ requireMatch(
   /\.repo-button-primary[\s\S]*?linear-gradient\(/,
   "The primary repository action must retain the compact portfolio treatment.",
 );
+requireMatch(
+  styles,
+  /\.markdown-body \.highlight pre[\s\S]*?background:\s*var\(--repo-surface\)/,
+  "Highlighted code blocks must use a theme-aware surface.",
+);
+requireMatch(
+  styles,
+  /@mixin repo-dark-theme[\s\S]*?\.markdown-body \.highlight span[\s\S]*?color:\s*var\(--repo-text\)/,
+  "Dark-mode syntax tokens must remain readable.",
+);
 for (const match of styles.matchAll(/--([\w-]+)\s*:/g)) {
   if (!match[1].startsWith("repo-"))
     errors.push(

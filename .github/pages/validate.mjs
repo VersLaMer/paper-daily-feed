@@ -120,6 +120,16 @@ requireMatch(
   /@mixin repo-dark-theme[\s\S]*?\.markdown-body \.highlight span[\s\S]*?color:\s*var\(--repo-text\)/,
   "Dark-mode syntax tokens must remain readable.",
 );
+requireMatch(
+  styles,
+  /@mixin repo-dark-theme[\s\S]*?--repo-surface:\s*#1c1c1eb3/,
+  "Dark content surfaces must match the portfolio glass background.",
+);
+requireMatch(
+  styles,
+  /@mixin repo-dark-theme[\s\S]*?--repo-backdrop:\s*linear-gradient[\s\S]*?body[\s\S]*?background:\s*var\(--repo-backdrop\),\s*var\(--repo-bg\)/,
+  "Dark page backgrounds must match the portfolio backdrop.",
+);
 for (const match of styles.matchAll(/--([\w-]+)\s*:/g)) {
   if (!match[1].startsWith("repo-"))
     errors.push(

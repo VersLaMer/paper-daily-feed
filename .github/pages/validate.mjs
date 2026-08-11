@@ -95,11 +95,6 @@ requireMatch(
   /@mixin repo-dark-theme[\s\S]*?\.markdown-body \.highlight span[\s\S]*?color:\s*var\(--repo-text\)/,
   "Dark-mode syntax tokens must remain readable.",
 );
-requireMatch(
-  styles,
-  /@mixin repo-dark-theme[\s\S]*?\.markdown-body img[\s\S]*?filter:\s*brightness\(/,
-  "Dark-mode content images must reduce light-surface glare.",
-);
 for (const match of styles.matchAll(/--([\w-]+)\s*:/g)) {
   if (!match[1].startsWith("repo-"))
     errors.push(

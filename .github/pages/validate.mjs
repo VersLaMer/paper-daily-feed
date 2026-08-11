@@ -71,8 +71,8 @@ requireMatch(
 );
 requireMatch(
   layout,
-  /name="theme-color"[\s\S]*?content="#007aff"[\s\S]*?media="\(prefers-color-scheme: light\)"[\s\S]*?name="theme-color"[\s\S]*?content="#0a84ff"[\s\S]*?media="\(prefers-color-scheme: dark\)"/,
-  "Layout must match the portfolio mobile status-bar colors.",
+  /name="theme-color"[\s\S]*?content="#007aff"[\s\S]*?media="\(prefers-color-scheme: light\)"[\s\S]*?data-theme-color="light"[\s\S]*?name="theme-color"[\s\S]*?content="#0a84ff"[\s\S]*?media="\(prefers-color-scheme: dark\)"[\s\S]*?data-theme-color="dark"/,
+  "Layout must expose the portfolio mobile status-bar colors to the shared theme controller.",
 );
 requireMatch(
   layout,

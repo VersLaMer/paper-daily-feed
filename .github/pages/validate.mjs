@@ -69,6 +69,16 @@ requireMatch(
   /customElements\.whenDefined\("shen-site-header"\)[\s\S]*?site-header-ready/,
   "Layout must release the stable header slot after the shared header loads.",
 );
+requireMatch(
+  layout,
+  /name="theme-color"[\s\S]*?content="#007aff"[\s\S]*?media="\(prefers-color-scheme: light\)"[\s\S]*?name="theme-color"[\s\S]*?content="#0a84ff"[\s\S]*?media="\(prefers-color-scheme: dark\)"/,
+  "Layout must match the portfolio mobile status-bar colors.",
+);
+requireMatch(
+  layout,
+  /shadowRoot\?\.querySelector\("\[src\]"\)/,
+  "Layout must observe the shared header frame instead of its style element.",
+);
 
 requireMatch(
   styles,

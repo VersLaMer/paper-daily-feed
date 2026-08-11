@@ -19,3 +19,4 @@ config/app.json
 config/app.jsonc
 
 docs/*.html
+.github/pages/.build/

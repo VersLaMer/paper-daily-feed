@@ -20,12 +20,14 @@ Use `APP_CONFIG`, not application code, as the normal customization path. A Vari
 
 **Rules before acting**
 
+- Before deployment, update the target fork to the current upstream version. If legacy customization commits caused divergence, migrate their effective configuration to `APP_CONFIG`, GitHub Secrets, and GitHub Variables, align the fork with upstream, and validate the result. Do not involve the user unless required information is unavailable or the intended outcome would change.
 - Read `@README.md` from beginning to end, especially **Get started**. If this file and the README differ, follow the README.
 - Read `@config/app.example.jsonc` before collecting optional settings or proposing configuration. Use only keys, value types, and behavior supported by that current template.
 - When the user has an additional requirement, first determine whether `APP_CONFIG` can satisfy it. Prefer the smallest relevant configuration change.
 - Do not edit or commit application code, workflow files, `data/journals.config.ts`, or other tracked files for deployment customization. If a requirement truly cannot be represented by `APP_CONFIG`, explain the gap before changing tracked files.
 - Confirm the signed-in GitHub account and target fork before changing GitHub state. Reuse an existing fork when possible.
-- Prefer `gh` and complete pages, commands, saving, and checks for the user. Ask the user to act only for choices, secure credential entry, sign-in, or two-factor confirmation.
+- Keep deployment on GitHub. Use `gh`, the GitHub API, repository pages, Actions, Secrets, and Variables to inspect files, configure, validate, update, and test the target fork. Do not clone the repository or require local setup by default. Use a temporary checkout only when a necessary step has no practical GitHub-side path; keep that work internal, never place credentials in it, and remove it after use.
+- Complete pages, commands, saving, and checks for the user. Ask the user to act only for choices that materially affect the outcome, secure credential entry, sign-in, or two-factor confirmation.
 
 **Evidence requirements**
 
@@ -33,41 +35,39 @@ Treat model memory and search-result snippets as leads, not evidence. Do not inv
 
 - Verify project behavior and configuration against the current `@README.md`, `@config/app.example.jsonc`, source, or workflow files before making a claim or saving a value.
 - Verify journal identity and ISSNs with the journal or publisher's official page; Crossref may be used as a second source. Verify an RSS or Atom URL by opening the feed and confirming that it returns recognizable entries for that journal.
-- If the user asks for “Top” journals, first explain that “Top” depends on a ranking source, metric, category, and year. Name and link the current source used. Never present an unsourced model-generated ordering as a ranking.
+- If the user asks for “Top” journals, determine the ranking source, metric, category, and year internally. Label the shortlist concisely with the current source and year, link the source, and explain the methodology only when ambiguity affects the result or the user asks. Never present an unsourced model-generated ordering as a ranking.
 - Verify SMTP, Zotero, GitHub, and API requirements with the provider's current official documentation when they affect setup.
-- When presenting journal candidates, include the evidence link and clearly separate verified facts from suggestions or inferences. If an important fact cannot be verified, say so and do not silently fill it in.
+- Verify journal candidates internally. By default, present only a concise shortlist and the distinctions needed for the user to choose. Provide detailed evidence links when a fact is uncertain, a choice depends on the evidence, or the user asks. If an important fact cannot be verified, say so and do not silently fill it in.
 - Report a check or workflow as successful only after observing its result. Never fabricate a citation, page content, command output, workflow status, or delivered email.
 
 ## Deployment flow
 
-Keep the conversation continuous: ask one simple question at a time and use the answer in the next question. Explain only unfamiliar choices that the user needs to decide; keep implementation terms and configuration field names internal unless showing the final configuration or answering a question. Do not jump from a broad research area to an unrelated choice without showing the connection.
+Minimize user effort and implementation detail. Ask only for information that cannot be safely inferred and materially affects the user-visible outcome. Group short, independent questions when doing so reduces total user effort. Choose configuration fields, technical defaults, migration steps, and validation methods internally. Present concise outcome-level summaries by default; provide technical details only when needed to resolve a blocker or when the user asks. Keep the conversation coherent and explain only unfamiliar choices that the user actually needs to decide.
 
 1. **Establish the outcome.** Confirm that the user wants a daily paper email, then ask which discipline they work in. Do not front-load implementation details.
-2. **Narrow the research interest.** Use their discipline to offer a few relevant broad directions. Narrow the field progressively, then summarize the understood research interest and ask the user to confirm it. Internally, this summary becomes `interests.profile.summary`.
-3. **Choose and verify paper sources.** Explain that interests control ranking, while feeds control which papers can enter the candidate pool. Discover journals for the confirmed field, apply the evidence requirements above, and present a verified shortlist. Ask which journals to include, add, or exclude, then show the final names and evidence for confirmation.
+2. **Narrow the research interest.** Use the user's description to infer a concise research profile. Ask a follow-up only when a material ambiguity would change the recommendations. Internally, the resulting summary becomes `interests.profile.summary`; do not ask the user to review that field or its implementation wording.
+3. **Choose and verify paper sources.** Internally determine and verify suitable sources for the understood research interest. Present a concise recommended selection with only the user-visible distinctions that matter. Ask for a choice only when credible alternatives would materially change the feed; keep configuration mechanics and routine evidence internal unless the user asks.
 
    The bundled catalog mainly covers geography. For geography, map confirmed journals to exact entries in `data/journals.config.ts` and use `feeds.catalogSelections`. For other disciplines, use `feeds.includeCatalog: false` and verified feeds in `feeds.customRss`. An empty `catalogSelections` means all bundled journals, not none.
-4. **Add optional interest sources.** After the text profile and journals are clear, ask whether the user wants their Zotero library to help determine relevance. If yes, collect `ZOTERO_ID` and a read-only `ZOTERO_KEY` through secure input and ask about collection filters.
-5. **Choose summary behavior.** Explain that AI TLDRs are optional and that, when disabled, the original abstract is used. If enabled, confirm the API provider, official API base URL, model identifier, and output language before collecting the API key securely.
-6. **Choose recommendation limits.** Ask how many papers the user wants at most in each delivery and whether they prefer stricter or broader matching. Map the answers internally to `matching.paperLimit` and `matching.minScore`; mention the field names only when reviewing the configuration.
-7. **Review the configuration.** Build the smallest `APP_CONFIG` that expresses the confirmed choices. Show the complete non-secret JSONC and explain each included section in the same order as the earlier decisions. Validate it with the current configuration parser (`bun run test:config`) using placeholders rather than real credentials, then obtain confirmation before saving or replacing it.
-8. **Prepare GitHub and credentials.** Check `gh`, start GitHub web sign-in if needed, confirm the account, and find or create the user's fork. Then collect the receiving address, sending address, SMTP server, and port in that order. Collect passwords, authorization codes, and API keys only through secure input.
-9. **Save settings without a customization commit.** Save credentials as Actions Secrets and save the reviewed JSONC as the repository Actions variable `APP_CONFIG`. Do not create or push a commit for these settings.
-10. **Enable, test, and hand off.** Enable the required workflows, verify automatic updates, run the test feed, inspect non-secret logs if it fails, and continue until the observed result succeeds and the user confirms receipt.
+4. **Resolve optional behavior.** Infer reasonable defaults for Zotero enrichment, AI TLDRs, output language, delivery size, and matching strictness from the user's request and current project defaults. Ask only about missing choices that materially affect the delivered result, grouping independent questions when useful. Collect any required credentials through secure input. Keep provider parameters, model identifiers, and configuration field names internal unless the user asks or must supply a value that cannot be discovered safely.
+5. **Build the configuration.** Build the smallest `APP_CONFIG` that expresses the understood outcome and check every field against the current `config/app.example.jsonc`. Do not show the JSONC or explain its fields by default. Before saving or replacing it, present one concise outcome-level summary and obtain approval to proceed. Do not clone the repository merely to run a local configuration check.
+6. **Prepare GitHub and credentials.** Check `gh`, start GitHub web sign-in if needed, confirm the account, and find or create the user's fork. Collect only the missing delivery details and credentials, grouping non-sensitive fields when convenient. Collect passwords, authorization codes, and API keys only through secure input.
+7. **Save settings without a customization commit.** Save credentials as Actions Secrets and save the reviewed JSONC as the repository Actions variable `APP_CONFIG`. Do not create or push a commit for these settings.
+8. **Validate, test, and hand off on GitHub.** Enable the required workflows, verify automatic updates, and run **Test paper feeds**. Treat that GitHub Actions run as the configuration validation and delivery test: it reads the saved `APP_CONFIG`, builds the current project, and attempts the test delivery. Inspect non-secret logs, correct Secrets or Variables, and rerun until the observed result succeeds and the user confirms receipt. Keep the handoff concise and outcome-focused; provide implementation details only on request.
 
 **Completion checklist**
 
 - [ ] **Prepare GitHub:** Confirm `gh` availability and login, the signed-in account, and the target fork.
-- [ ] **Confirm the research profile:** Confirm the progressively narrowed field and the final `interests.profile.summary`.
-- [ ] **Confirm paper sources:** Show evidence for journal identity, ISSNs, and working feeds; obtain confirmation for the final selection.
-- [ ] **Confirm optional features:** Confirm Zotero, AI summary, output language, paper limit, and minimum score choices.
-- [ ] **Review `APP_CONFIG`:** Validate every field against `config/app.example.jsonc`, validate the complete non-secret value with `bun run test:config`, show it, and obtain user confirmation.
+- [ ] **Establish the research profile:** Resolve the user's intended field and produce the final `interests.profile.summary`, asking only about material ambiguity.
+- [ ] **Select paper sources:** Verify journal identity, ISSNs, and working feeds internally; ask the user only when a source choice materially affects the outcome.
+- [ ] **Resolve optional features:** Apply reasonable defaults and establish only the missing user-visible choices for Zotero, AI summaries, output language, paper limit, and matching strictness.
+- [ ] **Review `APP_CONFIG`:** Check every field against `config/app.example.jsonc` and show a concise outcome summary rather than the JSONC unless requested.
 - [ ] **Save Secrets:** Save required `RECEIVER`, `SENDER`, `SENDER_PASSWORD`, `SMTP_SERVER`, and `SMTP_PORT`, plus only the credentials required by enabled features.
 - [ ] **Save the Variable:** Save the approved configuration as the repository Actions variable `APP_CONFIG`; do not commit it to the fork.
 - [ ] **Enable complete auto-updates:** Include workflow files in weekly updates. Create a fine-grained token scoped only to the target fork with **Contents** and **Workflows** read/write access, and save it directly as the Actions secret `MAINTENANCE_SYNC_TOKEN`. Involve the user only if GitHub requires sign-in or two-factor confirmation.
 - [ ] **Enable workflows:** Enable Actions, **Daily paper feeds**, **Repository maintenance**, and **Test paper feeds** in the fork.
 - [ ] **Verify auto-updates:** Run **Repository maintenance** and observe that weekly keepalive and upstream synchronization, including workflow files, succeed.
-- [ ] **Verify delivery:** Run **Test paper feeds**. Inspect only non-secret logs and correct settings through Secrets or Variables. Do not edit tracked files to force a successful run.
+- [ ] **Validate configuration and delivery:** Run **Test paper feeds** on GitHub. Confirm that the saved `APP_CONFIG` loads and the test delivery succeeds. Inspect only non-secret logs and correct settings through Secrets or Variables. Do not clone the repository or edit tracked files to force a successful run.
 - [ ] **Hand off:** Provide the fork link, successful test-run link, daily schedule status, and the simple way to pause **Daily paper feeds**. Never repeat a credential.
 
 ## Security and completion

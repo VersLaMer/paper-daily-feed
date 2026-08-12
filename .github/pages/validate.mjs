@@ -142,8 +142,8 @@ requireMatch(
 );
 requireMatch(
   styles,
-  /html\s*\{[\s\S]*?background-color:\s*var\(--repo-bg\)[\s\S]*?shen-site-header\s*\{[\s\S]*?position:\s*sticky[\s\S]*?top:\s*0[\s\S]*?background-color:\s*var\(--repo-bg\)/,
-  "The root canvas and sticky header must expose the active theme background to the iOS system status bar.",
+  /html\s*\{[^}]*background-color:\s*var\(--repo-bg\)[^}]*\}[\s\S]*?shen-site-header\s*\{[^}]*position:\s*sticky[^}]*top:\s*0[^}]*background:\s*transparent[^}]*\}/,
+  "The root canvas must tint the iOS system bar without covering the sticky header glass.",
 );
 requireMatch(
   styles,

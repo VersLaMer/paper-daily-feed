@@ -18,7 +18,8 @@ const matchingMock = {
   }))
 };
 const metadataEnrichmentMock = {
-  enrichFeedPaperMetadata: mock()
+  enrichFeedPaperMetadata: mock(),
+  enrichRecommendationAbstracts: mock()
 };
 const metadataRepairMock = {
   repairRecommendationMetadata: mock()
@@ -162,6 +163,9 @@ describe("runDailyFeed delivery history", () => {
       papers.map((candidate: FeedPaper) => ({ ...candidate, abstract: `Enriched ${candidate.abstract}` }))
     );
     matchingMock.rankPapers.mockResolvedValue([recommended("Fresh")]);
+    metadataEnrichmentMock.enrichRecommendationAbstracts.mockImplementation(
+      async (recommendations) => recommendations
+    );
     metadataRepairMock.repairRecommendationMetadata.mockImplementation(async (recommendations) => recommendations);
     emailMock.sendEmail.mockResolvedValue({ messageId: "message-id" });
   });
@@ -183,6 +187,10 @@ describe("runDailyFeed delivery history", () => {
       [{ ...paper("Fresh"), abstract: "Enriched Abstract" }],
       [interest],
       {}
+    );
+    expect(metadataEnrichmentMock.enrichRecommendationAbstracts).toHaveBeenCalledWith(
+      [recommended("Fresh")],
+      config().metadataEnrichment
     );
     expect(metadataRepairMock.repairRecommendationMetadata).toHaveBeenCalledWith(
       [recommended("Fresh")],

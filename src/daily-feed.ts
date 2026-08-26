@@ -6,7 +6,11 @@ import { openDeliveryHistory } from "./delivery-history.js";
 import { sendEmail } from "./email.js";
 import { buildInterestCorpus } from "./interest-corpus.js";
 import { rankPapers, resolveMatchingProvider } from "./matching.js";
-import { enrichFeedPaperMetadata, repairRecommendationMetadata } from "./paper-metadata.js";
+import {
+  enrichFeedPaperMetadata,
+  enrichRecommendationAbstracts,
+  repairRecommendationMetadata
+} from "./paper-metadata.js";
 import {
   deliverRecommendations,
   type RecommendationDeliveryDependencies
@@ -29,6 +33,7 @@ export type DailyFeedDependencies = {
   fetchRecentFeedPapers: typeof fetchRecentFeedPapers;
   openDeliveryHistory: typeof openDeliveryHistory;
   enrichFeedPaperMetadata: typeof enrichFeedPaperMetadata;
+  enrichRecommendationAbstracts: typeof enrichRecommendationAbstracts;
   resolveMatchingProvider: typeof resolveMatchingProvider;
   rankPapers: typeof rankPapers;
   repairRecommendationMetadata: typeof repairRecommendationMetadata;
@@ -40,6 +45,7 @@ const defaultDependencies: DailyFeedDependencies = {
   fetchRecentFeedPapers,
   openDeliveryHistory,
   enrichFeedPaperMetadata,
+  enrichRecommendationAbstracts,
   resolveMatchingProvider,
   rankPapers,
   repairRecommendationMetadata,
@@ -78,6 +84,10 @@ export async function runDailyFeed(
   );
   let recommendations = await dependencies.rankPapers(config.matching, enrichedPapers, interestCorpus, env);
   console.log(`Ranked ${recommendations.length} recommended papers.`);
+  recommendations = await dependencies.enrichRecommendationAbstracts(
+    recommendations,
+    config.metadataEnrichment
+  );
   recommendations = await dependencies.repairRecommendationMetadata(recommendations, config.metadataRepair);
 
   return deliverRecommendations(recommendations, mode, config, deliveryHistory, env, new Date(), dependencies.delivery);

@@ -1,6 +1,9 @@
-import { describe, expect, it, mock } from "bun:test";
-import { enrichFeedPaperMetadata } from "../src/paper-metadata.js";
-import type { FeedPaper } from "../src/types.js";
+import { describe, expect, it, mock, spyOn } from "bun:test";
+import {
+  enrichFeedPaperMetadata,
+  enrichRecommendationAbstracts
+} from "../src/paper-metadata.js";
+import type { FeedPaper, RecommendedPaper } from "../src/types.js";
 
 function paper(overrides: Partial<FeedPaper> = {}): FeedPaper {
   return {
@@ -71,5 +74,115 @@ describe("metadata enrichment", () => {
     );
 
     expect(enriched[0]?.abstract).toBe("RSS abstract with useful text.");
+  });
+});
+
+function recommendation(overrides: Partial<RecommendedPaper> = {}): RecommendedPaper {
+  return {
+    ...paper({
+      title: "Street Networks and Urban Resilience",
+      abstract: "",
+      url: "https://example.test/paper",
+      publishedAt: new Date("2026-05-11T00:00:00.000Z")
+    }),
+    score: 0.8,
+    matchContext: null,
+    ...overrides
+  };
+}
+
+const enrichmentConfig = {
+  enabled: true,
+  crossref: { enabled: true, mailto: "maintainer@example.test" }
+};
+
+describe("selected recommendation abstract enrichment", () => {
+  it("uses an exact DOI lookup only for selected recommendations with missing abstracts", async () => {
+    const log = spyOn(console, "log").mockImplementation(() => {});
+    const fetchCrossref = mock(async () => ({
+      doi: "10.1016/j.cities.2026.105952",
+      abstract: "Crossref supplies a detailed abstract for the selected recommendation."
+    }));
+    const searchCrossref = mock();
+    const missing = recommendation({
+      doi: "10.1016/j.cities.2026.105952",
+      url: "https://doi.org/10.1016/j.cities.2026.105952"
+    });
+    const complete = recommendation({ title: "Already complete", abstract: "An existing useful abstract remains unchanged." });
+
+    const enriched = await enrichRecommendationAbstracts(
+      [missing, complete],
+      enrichmentConfig,
+      { fetchCrossref, searchCrossref }
+    );
+
+    expect(fetchCrossref).toHaveBeenCalledTimes(1);
+    expect(fetchCrossref).toHaveBeenCalledWith("10.1016/j.cities.2026.105952");
+    expect(searchCrossref).not.toHaveBeenCalled();
+    expect(enriched[0]?.abstract).toBe(
+      "Crossref supplies a detailed abstract for the selected recommendation."
+    );
+    expect(enriched[1]).toEqual(complete);
+    expect(log).toHaveBeenCalledWith(
+      "[paper-metadata] Crossref selected-abstract enrichment checking 1/2 recommendations"
+    );
+    expect(log).toHaveBeenCalledWith(
+      "[paper-metadata] Crossref selected-abstract enrichment supplemented 1/1; 0 remain without abstracts"
+    );
+    log.mockRestore();
+  });
+
+  it("uses a high-confidence bibliographic match when the selected paper has no DOI", async () => {
+    const searchCrossref = mock(async () => [
+      {
+        doi: "10.1016/j.cities.wrong",
+        title: "Street Networks and Urban Resilience",
+        journal: "Unrelated Journal",
+        publishedAt: new Date("2026-05-01T00:00:00.000Z"),
+        abstract: "This wrong-journal abstract is detailed enough but must not be selected."
+      },
+      {
+        doi: "10.1016/j.cities.2026.105952",
+        title: "Street networks & urban resilience",
+        journal: "Annals of the American Association of Geographers",
+        publishedAt: new Date("2026-01-01T00:00:00.000Z"),
+        abstract: "The matched Crossref record provides a useful abstract for this recommendation."
+      }
+    ]);
+
+    const [enriched] = await enrichRecommendationAbstracts(
+      [recommendation()],
+      enrichmentConfig,
+      { fetchCrossref: mock(), searchCrossref }
+    );
+
+    expect(searchCrossref).toHaveBeenCalledWith(
+      "Street Networks and Urban Resilience AAAG 2026"
+    );
+    expect(enriched?.doi).toBe("10.1016/j.cities.2026.105952");
+    expect(enriched?.abstract).toBe(
+      "The matched Crossref record provides a useful abstract for this recommendation."
+    );
+  });
+
+  it("keeps the selected paper unchanged when Crossref has no high-confidence abstract match", async () => {
+    const selected = recommendation();
+    const [enriched] = await enrichRecommendationAbstracts(
+      [selected],
+      enrichmentConfig,
+      {
+        searchCrossref: mock(async () => [
+          {
+            doi: "10.1000/unrelated",
+            title: "A Different Urban Research Paper",
+            journal: "AAAG",
+            publishedAt: new Date("2026-01-01T00:00:00.000Z"),
+            abstract: "A detailed but unrelated abstract that must never be copied into the recommendation."
+          }
+        ])
+      }
+    );
+
+    expect(enriched).toEqual(selected);
   });
 });

@@ -1,6 +1,11 @@
 import { describe, expect, it, mock } from "bun:test";
 import packageMetadata from "../package.json";
-import { fetchCrossrefJournalWorks, fetchCrossrefWork, findDoi } from "../src/crossref.js";
+import {
+  fetchCrossrefJournalWorks,
+  fetchCrossrefWork,
+  findDoi,
+  searchCrossrefWorks
+} from "../src/crossref.js";
 
 describe("Crossref metadata", () => {
   it("retrieves recent works for a journal ISSN", async () => {
@@ -37,7 +42,7 @@ describe("Crossref metadata", () => {
   });
 
   it("normalizes Crossref work metadata from DOI lookup responses", async () => {
-    const fetcher = mock(async () =>
+    const fetcher = mock(async (_input: string | URL | Request) =>
       new Response(
         JSON.stringify({
           message: {
@@ -79,5 +84,44 @@ describe("Crossref metadata", () => {
       publishedAt: new Date("2026-04-21T00:00:00.000Z"),
       url: "https://doi.org/10.1080/24694452.2025.2592754"
     });
+  });
+
+  it("searches a small abstract-bearing candidate set from bibliographic metadata", async () => {
+    const fetcher = mock(async (_input: string | URL | Request) =>
+      Response.json({
+        message: {
+          items: [
+            {
+              DOI: "10.1016/j.cities.2026.105952",
+              title: ["Street Networks and Urban Resilience"],
+              abstract: "<jats:p>A sufficiently detailed Crossref abstract for the selected paper.</jats:p>",
+              "container-title": ["Cities"],
+              issued: { "date-parts": [[2026, 5, 1]] }
+            }
+          ]
+        }
+      })
+    );
+
+    const works = await searchCrossrefWorks("Street Networks and Urban Resilience Cities 2026", {
+      fetcher,
+      mailto: "maintainer@example.test"
+    });
+
+    const requestUrl = new URL(String(fetcher.mock.calls[0]?.[0]));
+    expect(requestUrl.pathname).toBe("/works");
+    expect(requestUrl.searchParams.get("query.bibliographic")).toBe(
+      "Street Networks and Urban Resilience Cities 2026"
+    );
+    expect(requestUrl.searchParams.get("filter")).toBe("has-abstract:true");
+    expect(requestUrl.searchParams.get("rows")).toBe("3");
+    expect(requestUrl.searchParams.get("mailto")).toBe("maintainer@example.test");
+    expect(works).toMatchObject([
+      {
+        doi: "10.1016/j.cities.2026.105952",
+        title: "Street Networks and Urban Resilience",
+        abstract: "A sufficiently detailed Crossref abstract for the selected paper."
+      }
+    ]);
   });
 });

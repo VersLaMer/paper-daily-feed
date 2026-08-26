@@ -1,9 +1,18 @@
 import type { MetadataEnrichmentConfig, MetadataRepairConfig } from "./app-config.js";
-import { fetchCrossrefWork, findDoi, type CrossrefMetadata } from "./crossref.js";
+import {
+  fetchCrossrefWork,
+  findDoi,
+  searchCrossrefWorks,
+  type CrossrefMetadata
+} from "./crossref.js";
 import type { FeedPaper, RecommendedPaper } from "./types.js";
 
 type EnrichmentDependencies = {
   fetchCrossref?: (doi: string) => Promise<CrossrefMetadata | null>;
+};
+
+type RecommendationAbstractEnrichmentDependencies = EnrichmentDependencies & {
+  searchCrossref?: (bibliographicQuery: string) => Promise<CrossrefMetadata[]>;
 };
 
 type NerEntity = {
@@ -23,7 +32,9 @@ function paperDoi(paper: FeedPaper): string | undefined {
 }
 
 function meaningfulAbstract(value: string | undefined): value is string {
-  return Boolean(value && /[A-Za-z0-9]/.test(value) && value.replace(/\W/g, "").length >= 20);
+  return Boolean(
+    value && /[\p{L}\p{N}]/u.test(value) && value.replace(/[^\p{L}\p{N}]/gu, "").length >= 20
+  );
 }
 
 function mergeCrossrefMetadata(paper: FeedPaper, metadata: CrossrefMetadata): FeedPaper {
@@ -70,6 +81,150 @@ export async function enrichFeedPaperMetadata(
     }
   }
   console.log(`[paper-metadata] Crossref enriched ${repaired}/${papers.length} papers`);
+  return enriched;
+}
+
+function normalizedBibliographicText(value: string): string {
+  return value
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("en-US")
+    .replace(/&/g, " and ")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
+function editDistance(left: string, right: string): number {
+  const previous = Array.from({ length: right.length + 1 }, (_, index) => index);
+  for (let leftIndex = 1; leftIndex <= left.length; leftIndex += 1) {
+    const current = [leftIndex];
+    for (let rightIndex = 1; rightIndex <= right.length; rightIndex += 1) {
+      current[rightIndex] = Math.min(
+        (current[rightIndex - 1] ?? 0) + 1,
+        (previous[rightIndex] ?? 0) + 1,
+        (previous[rightIndex - 1] ?? 0) + (left[leftIndex - 1] === right[rightIndex - 1] ? 0 : 1)
+      );
+    }
+    previous.splice(0, previous.length, ...current);
+  }
+  return previous[right.length] ?? Math.max(left.length, right.length);
+}
+
+function bibliographicSimilarity(left: string, right: string): number {
+  const normalizedLeft = normalizedBibliographicText(left);
+  const normalizedRight = normalizedBibliographicText(right);
+  if (!normalizedLeft || !normalizedRight) return 0;
+  if (normalizedLeft === normalizedRight) return 1;
+  return 1 - editDistance(normalizedLeft, normalizedRight) / Math.max(normalizedLeft.length, normalizedRight.length);
+}
+
+function bibliographicAcronym(value: string): string {
+  const stopWords = new Set(["a", "an", "and", "for", "in", "of", "on", "the", "to"]);
+  return normalizedBibliographicText(value)
+    .split(" ")
+    .filter((word) => word && !stopWords.has(word))
+    .map((word) => word[0])
+    .join("");
+}
+
+function journalsMatch(left: string, right: string): boolean {
+  const normalizedLeft = normalizedBibliographicText(left);
+  const normalizedRight = normalizedBibliographicText(right);
+  if (bibliographicSimilarity(left, right) >= 0.8) return true;
+  const leftAcronym = bibliographicAcronym(left);
+  const rightAcronym = bibliographicAcronym(right);
+  return (
+    (normalizedLeft.length <= 8 && normalizedLeft.replace(/ /g, "") === rightAcronym) ||
+    (normalizedRight.length <= 8 && normalizedRight.replace(/ /g, "") === leftAcronym)
+  );
+}
+
+function isHighConfidenceMatch(paper: RecommendedPaper, candidate: CrossrefMetadata): boolean {
+  if (!candidate.title || bibliographicSimilarity(paper.title, candidate.title) < 0.95) return false;
+
+  const paperYear = paper.publishedAt?.getUTCFullYear();
+  const candidateYear = candidate.publishedAt?.getUTCFullYear();
+  if (paperYear && candidateYear && paperYear !== candidateYear) return false;
+
+  if (
+    paper.journal &&
+    candidate.journal &&
+    !journalsMatch(paper.journal, candidate.journal)
+  ) {
+    return false;
+  }
+  return true;
+}
+
+function bibliographicQuery(paper: RecommendedPaper): string {
+  return [paper.title, paper.journal, paper.publishedAt?.getUTCFullYear()].filter(Boolean).join(" ");
+}
+
+/** Supplements abstracts only for the small set of papers selected for delivery. */
+export async function enrichRecommendationAbstracts(
+  recommendations: RecommendedPaper[],
+  config: MetadataEnrichmentConfig,
+  dependencies: RecommendationAbstractEnrichmentDependencies = {}
+): Promise<RecommendedPaper[]> {
+  if (recommendations.length === 0) return recommendations;
+  if (!config.enabled || !config.crossref.enabled) {
+    console.log("[paper-metadata] Crossref selected-abstract enrichment skipped; metadata enrichment is disabled");
+    return recommendations;
+  }
+
+  const missingCount = recommendations.filter((paper) => !meaningfulAbstract(paper.abstract)).length;
+  if (missingCount === 0) {
+    console.log(
+      `[paper-metadata] Crossref selected-abstract enrichment skipped; all ${recommendations.length} recommendations have abstracts`
+    );
+    return recommendations;
+  }
+
+  console.log(
+    `[paper-metadata] Crossref selected-abstract enrichment checking ${missingCount}/${recommendations.length} recommendations`
+  );
+  const fetchCrossref =
+    dependencies.fetchCrossref ??
+    ((doi: string) => fetchCrossrefWork(doi, { mailto: config.crossref.mailto }));
+  const searchCrossref =
+    dependencies.searchCrossref ??
+    ((query: string) => searchCrossrefWorks(query, { mailto: config.crossref.mailto }));
+  let supplemented = 0;
+  const enriched: RecommendedPaper[] = [];
+
+  for (const paper of recommendations) {
+    if (meaningfulAbstract(paper.abstract)) {
+      enriched.push(paper);
+      continue;
+    }
+
+    const doi = paperDoi(paper);
+    try {
+      const metadata = doi
+        ? await fetchCrossref(doi)
+        : (await searchCrossref(bibliographicQuery(paper))).find(
+            (candidate) => meaningfulAbstract(candidate.abstract) && isHighConfidenceMatch(paper, candidate)
+          ) ?? null;
+      if (metadata && meaningfulAbstract(metadata.abstract)) {
+        enriched.push({ ...paper, doi: metadata.doi, abstract: metadata.abstract });
+        supplemented += 1;
+      } else {
+        enriched.push(paper);
+      }
+    } catch (error) {
+      console.log(
+        `[paper-metadata] Crossref selected-abstract lookup failed for ${doi ? `DOI ${doi}` : `title "${paper.title}"`}: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+      enriched.push(paper);
+    }
+  }
+
+  console.log(
+    `[paper-metadata] Crossref selected-abstract enrichment supplemented ${supplemented}/${missingCount}; ${missingCount - supplemented} remain without abstracts`
+  );
   return enriched;
 }
 

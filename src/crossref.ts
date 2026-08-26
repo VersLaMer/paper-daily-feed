@@ -132,6 +132,38 @@ export async function fetchCrossrefWork(
   return payload.message ? normalizeWork(payload.message) : null;
 }
 
+export async function searchCrossrefWorks(
+  bibliographicQuery: string,
+  { fetcher = fetch, mailto = "" }: FetchCrossrefOptions = {}
+): Promise<CrossrefMetadata[]> {
+  const url = new URL("https://api.crossref.org/works");
+  url.searchParams.set("query.bibliographic", bibliographicQuery);
+  url.searchParams.set("filter", "has-abstract:true");
+  url.searchParams.set("rows", "3");
+  url.searchParams.set(
+    "select",
+    "DOI,title,abstract,author,container-title,published-print,published-online,published,issued,URL"
+  );
+  if (mailto.trim()) {
+    url.searchParams.set("mailto", mailto.trim());
+  }
+
+  const response = await fetcher(url.toString(), {
+    headers: {
+      Accept: "application/json",
+      "User-Agent": USER_AGENT
+    }
+  });
+  if (!response.ok) {
+    return [];
+  }
+
+  const payload = (await response.json()) as CrossrefWorksResponse;
+  return (payload.message?.items ?? [])
+    .map(normalizeWork)
+    .filter((work): work is CrossrefMetadata => work !== null);
+}
+
 export async function fetchCrossrefJournalWorks(
   issn: string,
   { fetcher = fetch, mailto = "" }: FetchCrossrefOptions = {}

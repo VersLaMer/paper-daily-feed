@@ -276,7 +276,31 @@ function affiliationHeadPattern(): string {
 }
 
 function findTaylorFrancisAffiliationStart(value: string): RegExpExecArray | null {
-  return new RegExp(`\\s+a\\s+(?=${affiliationHeadPattern()}\\b)`, "i").exec(value);
+  return (
+    new RegExp(`\\s+a\\s+(?=${affiliationHeadPattern()}\\b)`, "i").exec(value) ??
+    /\s+a\s+(?=\p{Lu})/u.exec(value)
+  );
+}
+
+function findCompactSecondAffiliationStart(value: string): number | undefined {
+  for (const match of value.matchAll(/b\s+(?=\p{Lu})/gu)) {
+    const markerIndex = match.index;
+    const precedingComma = value.lastIndexOf(",", markerIndex);
+    if (precedingComma < 0) continue;
+
+    const locationTail = value.slice(precedingComma + 1, markerIndex).trim();
+    const markerWord = `${locationTail}b`.split(/\s+/).at(-1) ?? "";
+    const nextAffiliation = value.slice(markerIndex + match[0].length, markerIndex + match[0].length + 180);
+    if (
+      /^[\p{Lu}][\p{L} .’'()-]{1,50}$/u.test(locationTail) &&
+      !/^(?:Club|Hub|Lab|Web)$/i.test(markerWord) &&
+      (new RegExp(`\\b(?:${affiliationHeadPattern()})\\b`, "i").test(nextAffiliation) ||
+        /\b(?:Data Science|Remote Sensing|Cartography|Geography|Innovation)\b/i.test(nextAffiliation))
+    ) {
+      return markerIndex;
+    }
+  }
+  return undefined;
 }
 
 function findTaylorFrancisAffiliationEnd(value: string): number {
@@ -291,10 +315,16 @@ function findTaylorFrancisAffiliationEnd(value: string): number {
   const compactCountryMarkerIndex = compactCountryAffiliation
     ? compactCountryAffiliation.index + compactCountryAffiliation[0].lastIndexOf(compactCountryAffiliation[1] ?? "")
     : undefined;
-  const biography = /\s*[A-Z][A-Z.'’-]+(?:\s+[A-Z][A-Z.'’-]+){1,3}\s+is\s+(?:currently\s+)?(?:a|an|the)\s+/u.exec(
-    value
-  );
-  const starts = [markedAffiliation?.index, compactCountryMarkerIndex, biography?.index].filter(
+  const compactSecondAffiliationStart = findCompactSecondAffiliationStart(value);
+  const biography = /\s+[\p{Lu}][\p{L}.'’-]+(?:\s+[\p{Lu}][\p{L}.'’-]+){1,3}\s+is\s+(?:currently\s+)?(?:a|an|the)\s+/u.exec(value);
+  const compactBiography = /(?<=[\p{Ll}.])(?=[\p{Lu}][\p{L}.'’-]+(?:\s+[\p{Lu}][\p{L}.'’-]+){1,3}\s+is\s+(?:currently\s+)?(?:a|an|the)\s+)/u.exec(value);
+  const starts = [
+    markedAffiliation?.index,
+    compactCountryMarkerIndex,
+    compactSecondAffiliationStart,
+    biography?.index,
+    compactBiography?.index
+  ].filter(
     (index): index is number => index !== undefined
   );
   return starts.length > 0 ? Math.min(...starts) : value.length;
@@ -376,10 +406,15 @@ function splitAuthorValue(value: string): string[] {
   }
 
   const tokens = spacedNames.trim().split(/\s+/).filter(Boolean);
-  if (hasStructuredMetadata && tokens.length >= 4 && tokens.length <= 20 && tokens.length % 2 === 0) {
+  if (hasStructuredMetadata && tokens.length >= 4 && tokens.length <= 24) {
     const names: string[] = [];
-    for (let index = 0; index < tokens.length; index += 2) {
-      names.push(`${tokens[index]} ${tokens[index + 1]}`);
+    for (let index = 0; index < tokens.length;) {
+      const remaining = tokens.length - index;
+      if (remaining < 2) return [text];
+      const groupLength = remaining === 3 || /^[\p{Lu}]\.$/u.test(tokens[index + 1] ?? "") ? 3 : 2;
+      if (remaining < groupLength) return [text];
+      names.push(tokens.slice(index, index + groupLength).join(" "));
+      index += groupLength;
     }
     return names;
   }

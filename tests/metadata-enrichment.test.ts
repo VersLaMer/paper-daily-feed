@@ -23,6 +23,7 @@ describe("metadata enrichment", () => {
       title: "Crossref title",
       abstract: "Crossref abstract with enough detail to replace the RSS description.",
       authors: ["Ada Lovelace"],
+      firstAffiliation: "Department of Geography, Example University",
       journal: "Annals of the American Association of Geographers",
       publishedAt: new Date("2026-04-21T00:00:00.000Z"),
       url: "https://doi.org/10.1080/24694452.2025.2592754"
@@ -43,7 +44,8 @@ describe("metadata enrichment", () => {
         url: "https://www.tandfonline.com/doi/full/10.1080/24694452.2025.2592754?af=R",
         doi: "10.1080/24694452.2025.2592754",
         publishedAt: new Date("2026-04-21T00:00:00.000Z"),
-        authors: ["Ada Lovelace"]
+        authors: ["Ada Lovelace"],
+        firstAffiliation: "Department of Geography, Example University"
       }
     ]);
   });
@@ -74,6 +76,23 @@ describe("metadata enrichment", () => {
     );
 
     expect(enriched[0]?.abstract).toBe("RSS abstract with useful text.");
+  });
+
+  it("does not merge a Crossref record whose DOI differs from the requested DOI", async () => {
+    const original = paper({ authors: ["RSS Author"], firstAffiliation: "RSS University" });
+    const enriched = await enrichFeedPaperMetadata(
+      [original],
+      { enabled: true, crossref: { enabled: true, mailto: "" } },
+      {
+        fetchCrossref: mock(async () => ({
+          doi: "10.1080/different",
+          authors: ["Wrong Author"],
+          firstAffiliation: "Wrong University"
+        }))
+      }
+    );
+
+    expect(enriched).toEqual([original]);
   });
 });
 
@@ -124,12 +143,52 @@ describe("selected recommendation abstract enrichment", () => {
     );
     expect(enriched[1]).toEqual(complete);
     expect(log).toHaveBeenCalledWith(
-      "[paper-metadata] Crossref selected-abstract enrichment checking 1/2 recommendations"
+      "[paper-metadata] Crossref selected metadata enrichment checking 1 DOI records; 1/2 missing abstracts"
     );
     expect(log).toHaveBeenCalledWith(
-      "[paper-metadata] Crossref selected-abstract enrichment supplemented 1/1; 0 remain without abstracts"
+      "[paper-metadata] Crossref selected metadata enrichment matched 1/1 DOI records; supplemented 1/1 abstracts; 0 remain without abstracts"
     );
     log.mockRestore();
+  });
+
+  it("uses an exact DOI match to replace authors and first affiliation even when the abstract exists", async () => {
+    const fetchCrossref = mock(async () => ({
+      doi: "10.1080/13658816.2026.2613291",
+      authors: [
+        "Aneesha Fernando",
+        "Surangika Ranathunga",
+        "Kristin Stock",
+        "Raj Prasanna",
+        "Christopher B. Jones"
+      ],
+      firstAffiliation: "School of Computational and Mathematical Sciences, Massey University"
+    }));
+    const selected = recommendation({
+      title: "Georeferencing complex relative locality descriptions with large language models",
+      abstract: "A complete RSS abstract that must remain available after metadata repair.",
+      url: "https://www.tandfonline.com/doi/full/10.1080/13658816.2026.2613291?af=R",
+      authors: ["Polluted author and biography metadata"],
+      firstAffiliation: "Polluted affiliation and biography metadata"
+    });
+
+    const [enriched] = await enrichRecommendationAbstracts(
+      [selected],
+      enrichmentConfig,
+      { fetchCrossref, searchCrossref: mock() }
+    );
+
+    expect(fetchCrossref).toHaveBeenCalledWith("10.1080/13658816.2026.2613291");
+    expect(enriched).toMatchObject({
+      abstract: selected.abstract,
+      authors: [
+        "Aneesha Fernando",
+        "Surangika Ranathunga",
+        "Kristin Stock",
+        "Raj Prasanna",
+        "Christopher B. Jones"
+      ],
+      firstAffiliation: "School of Computational and Mathematical Sciences, Massey University"
+    });
   });
 
   it("uses a high-confidence bibliographic match when the selected paper has no DOI", async () => {

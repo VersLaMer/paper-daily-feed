@@ -42,3 +42,8 @@ export function stripHtml(text: string): string {
     .trim();
 }
 
+export function hasMeaningfulAbstract(value: string | undefined): value is string {
+  return Boolean(
+    value && /[\p{L}\p{N}]/u.test(value) && value.replace(/[^\p{L}\p{N}]/gu, "").length >= 20
+  );
+}

@@ -110,6 +110,74 @@ describe("normalizeFeedItem", () => {
     });
   });
 
+  it("separates Taylor authors, the first affiliation, and biographies with compact markers", () => {
+    const paper = normalizeFeedItem("IJGIS", {
+      title: "Georeferencing complex relative locality descriptions with large language models",
+      link: "https://www.tandfonline.com/doi/full/10.1080/example?af=R",
+      dcCreators: [
+        "Aneesha Fernando Surangika Ranathunga Kristin Stock Raj Prasanna Christopher B. Jones a School of Computational and Mathematical Sciences, Massey University, Auckland, New Zealandb Joint Centre for Disaster Research, Massey University, Wellington, New Zealandc School of Computer Science and Informatics, Cardiff University, Cardiff, United KingdomAneesha Fernando is a PhD student at Massey University."
+      ]
+    });
+
+    expect(paper?.authors).toEqual([
+      "Aneesha Fernando",
+      "Surangika Ranathunga",
+      "Kristin Stock",
+      "Raj Prasanna",
+      "Christopher B. Jones"
+    ]);
+    expect(paper?.firstAffiliation).toBe(
+      "School of Computational and Mathematical Sciences, Massey University, Auckland, New Zealand"
+    );
+  });
+
+  it("recognizes Taylor affiliations whose first organization starts with Data Science", () => {
+    const paper = normalizeFeedItem("IJGIS", {
+      title: "A deep dive into OpenStreetMap research",
+      link: "https://www.tandfonline.com/doi/full/10.1080/example?af=R",
+      dcCreators: [
+        "Yao Sun Liqiu Meng Andrés Camero Stefan Auer Xiao Xiang Zhu a Data Science in Earth Observation, Technical University of Munich, Munich, Germanyb Remote Sensing Technology Institute, German Aerospace Center, Weßling, GermanyYao Sun is a doctoral researcher."
+      ]
+    });
+
+    expect(paper?.authors).toEqual([
+      "Yao Sun",
+      "Liqiu Meng",
+      "Andrés Camero",
+      "Stefan Auer",
+      "Xiao Xiang Zhu"
+    ]);
+    expect(paper?.firstAffiliation).toBe(
+      "Data Science in Earth Observation, Technical University of Munich, Munich, Germany"
+    );
+  });
+
+  it("stops Taylor first affiliations before a compact b marker instead of including contributions", () => {
+    const paper = normalizeFeedItem("IJGIS", {
+      title: "OGSAgent",
+      link: "https://www.tandfonline.com/doi/full/10.1080/example?af=R",
+      dcCreators: [
+        "Kaixuan Wang Peng Yue Haoru Wu Baoxin Teng a School of Remote Sensing and Information Engineering, Wuhan University, Wuhan, Chinab Wuhan University – Xianning Institute for Advanced Air Mobility, Xianning, ChinaKaixuan Wang is a PhD student. He contributed to the conceptualization and methodology."
+      ]
+    });
+
+    expect(paper?.authors).toEqual(["Kaixuan Wang", "Peng Yue", "Haoru Wu", "Baoxin Teng"]);
+    expect(paper?.firstAffiliation).toBe(
+      "School of Remote Sensing and Information Engineering, Wuhan University, Wuhan, China"
+    );
+  });
+
+  it("does not mistake the final b in an organization name for an affiliation marker", () => {
+    const paper = normalizeFeedItem("IJGIS", {
+      title: "Mobility lab methods",
+      link: "https://www.tandfonline.com/doi/full/10.1080/example?af=R",
+      dcCreators: ["Jane Doe a Department of Geography, Urban Mobility Lab University"]
+    });
+
+    expect(paper?.authors).toEqual(["Jane Doe"]);
+    expect(paper?.firstAffiliation).toBe("Department of Geography, Urban Mobility Lab University");
+  });
+
   it("removes Urban Geography Taylor affiliations that start with Asia Research metadata", () => {
     const paper = normalizeFeedItem("Urban Geography", {
       title: "Circulating referencescapes",

@@ -211,6 +211,33 @@ describe("renderEmail", () => {
     expect(fallbackHtml).toContain("AUG 25, 2026");
   });
 
+  it("renders only the title translation for a title-only paper brief", () => {
+    const paper: RecommendedPaper = {
+      journal: "IJGIS",
+      title: "Georeferencing complex relative locality descriptions with large language models",
+      abstract: "",
+      url: "https://example.test/georeferencing",
+      publishedAt: null,
+      score: 0.8,
+      matchContext: null
+    };
+    const html = renderEmail([paper], null, {
+      headline: "地理文本处理正在采用大型语言模型",
+      overview: "研究关注相对位置描述的地理编码。",
+      preheader: "复杂相对位置描述的地理编码。",
+      papers: [
+        {
+          takeaway: "这条推测性结论不应显示。",
+          tldr: "基于大型语言模型对复杂相对位置描述进行地理编码。",
+          titleOnly: true
+        }
+      ]
+    });
+
+    expect(html).toContain("基于大型语言模型对复杂相对位置描述进行地理编码。");
+    expect(html).not.toContain("这条推测性结论不应显示");
+  });
+
   it("renders recommended papers from highest score to lowest score", () => {
     const html = renderEmail([
       {
@@ -255,7 +282,9 @@ describe("renderEmail", () => {
     expect(html).not.toContain("urban heat, shade equity");
     expect(html).not.toContain("Unknown date");
     expect(html).not.toContain("Authors unavailable");
-    expect(html).toContain("No abstract provided.");
+    expect(html).toContain(">Title:</strong>");
+    expect(html).toContain("Heat risk and urban shade.");
+    expect(html).not.toContain("No abstract provided.");
   });
 });
 

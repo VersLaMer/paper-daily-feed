@@ -8,6 +8,7 @@ export type CrossrefMetadata = {
   title?: string;
   abstract?: string;
   authors?: string[];
+  firstAffiliation?: string;
   journal?: string;
   publishedAt?: Date;
   url?: string;
@@ -21,6 +22,7 @@ type CrossrefAuthor = {
   given?: string;
   family?: string;
   name?: string;
+  affiliation?: Array<{ name?: string }>;
 };
 
 type CrossrefWorkMessage = {
@@ -90,6 +92,9 @@ function normalizeWork(message: CrossrefWorkMessage): CrossrefMetadata | null {
   }
 
   const authors = message.author?.map(normalizeAuthor).filter((author): author is string => Boolean(author));
+  const firstAffiliation = firstNonEmpty(
+    (message.author ?? []).flatMap((author) => author.affiliation ?? []).map((affiliation) => affiliation.name)
+  );
   const publishedAt =
     parseCrossrefDate(message["published-print"]) ??
     parseCrossrefDate(message["published-online"]) ??
@@ -102,6 +107,7 @@ function normalizeWork(message: CrossrefWorkMessage): CrossrefMetadata | null {
     ...(firstNonEmpty(message.title ?? []) ? { title: firstNonEmpty(message.title ?? []) } : {}),
     ...(abstract ? { abstract } : {}),
     ...(authors?.length ? { authors } : {}),
+    ...(firstAffiliation ? { firstAffiliation } : {}),
     ...(firstNonEmpty(message["container-title"] ?? []) ? { journal: firstNonEmpty(message["container-title"] ?? []) } : {}),
     ...(publishedAt ? { publishedAt } : {}),
     ...(message.URL ? { url: message.URL } : {})

@@ -50,7 +50,14 @@ describe("Crossref metadata", () => {
             title: ["Crossref title"],
             abstract: "<jats:p>Crossref abstract with <i>markup</i>.</jats:p>",
             author: [
-              { given: "Ada", family: "Lovelace" },
+              {
+                given: "Ada",
+                family: "Lovelace",
+                affiliation: [
+                  { name: "Department of Geography, Example University" },
+                  { name: "Secondary Research Centre" }
+                ]
+              },
               { name: "Open Research Group" }
             ],
             "container-title": ["Annals of the American Association of Geographers"],
@@ -80,6 +87,7 @@ describe("Crossref metadata", () => {
       title: "Crossref title",
       abstract: "Crossref abstract with markup.",
       authors: ["Ada Lovelace", "Open Research Group"],
+      firstAffiliation: "Department of Geography, Example University",
       journal: "Annals of the American Association of Geographers",
       publishedAt: new Date("2026-04-21T00:00:00.000Z"),
       url: "https://doi.org/10.1080/24694452.2025.2592754"

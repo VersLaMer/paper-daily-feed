@@ -1,4 +1,5 @@
 import type { SummaryConfig } from "./app-config.js";
+import { hasMeaningfulAbstract } from "./text.js";
 import type { RecommendedPaper } from "./types.js";
 
 const MAX_ABSTRACT_INPUT_LENGTH = 4_000;
@@ -13,6 +14,7 @@ const BRIEFING_META_LANGUAGE = [
 export type PaperBrief = {
   takeaway: string;
   tldr: string;
+  titleOnly?: boolean;
 };
 
 export type EditorialDigest = {
@@ -58,14 +60,14 @@ function researchSynthesis(value: unknown, label: string): string {
   return text;
 }
 
-function parseDigest(value: unknown, paperCount: number): EditorialDigest {
+function parseDigest(value: unknown, papers: RecommendedPaper[]): EditorialDigest {
   if (!value || typeof value !== "object") {
     throw new Error("Generation API returned an invalid digest.");
   }
 
   const candidate = value as Record<string, unknown>;
   const paperBriefs = candidate.papers;
-  if (!Array.isArray(paperBriefs) || paperBriefs.length !== paperCount) {
+  if (!Array.isArray(paperBriefs) || paperBriefs.length !== papers.length) {
     throw new Error("Generation API returned the wrong number of paper briefs.");
   }
 
@@ -80,7 +82,8 @@ function parseDigest(value: unknown, paperCount: number): EditorialDigest {
       const brief = paperBrief as Record<string, unknown>;
       return {
         takeaway: requiredText(brief.takeaway, `takeaway for paper ${index}`),
-        tldr: requiredText(brief.tldr, `tldr for paper ${index}`)
+        tldr: requiredText(brief.tldr, `tldr for paper ${index}`),
+        ...(!hasMeaningfulAbstract(papers[index]?.abstract) ? { titleOnly: true } : {})
       };
     })
   };
@@ -88,6 +91,7 @@ function parseDigest(value: unknown, paperCount: number): EditorialDigest {
 
 function paperPrompt(paper: RecommendedPaper, index: number): string {
   const match = paper.matchContext;
+  const hasAbstract = hasMeaningfulAbstract(paper.abstract);
   const matchHint = match
     ? [match.bestMatchTitle, ...match.bestMatchTopics].filter(Boolean).join(", ")
     : "None";
@@ -96,7 +100,8 @@ function paperPrompt(paper: RecommendedPaper, index: number): string {
     `Paper ${index}`,
     `Journal: ${paper.journal}`,
     `Title: ${paper.title}`,
-    `Abstract: ${compact(paper.abstract || "No abstract provided.", MAX_ABSTRACT_INPUT_LENGTH)}`,
+    `Source material: ${hasAbstract ? "Title and abstract" : "Title only (abstract unavailable)"}`,
+    ...(hasAbstract ? [`Abstract: ${compact(paper.abstract, MAX_ABSTRACT_INPUT_LENGTH)}`] : []),
     `Matching hint: ${matchHint || "None"}`
   ].join("\n");
 }
@@ -136,6 +141,7 @@ export function createOpenAIEditorialSummarizer(config: SummaryConfig): Summariz
               "Synthesize only when a genuine shared thread exists; otherwise state the distinct research directions directly without referring to the papers as a collection.",
               "Each takeaway must be one fluent, conclusion-led sentence that states the paper's main contribution, finding, or methodological advance: the single point the reader should remember.",
               "Each paper tldr must be a faithful, concise translation and compression of that paper's supplied abstract into the requested language, using the title only as context.",
+              "When a paper's source material is marked Title only (abstract unavailable), do not infer any method, result, contribution, significance, or trend beyond its title. For that paper, make the tldr a faithful translation of the title when the requested language differs from the title, or a concise title summary when they are the same language. Keep its takeaway equally title-bound; it will not be displayed. Headline and overview must remain at title level when they use such a paper, without presenting inferred findings.",
               "A tldr may use multiple fluent sentences when needed to preserve the abstract's concrete method, contribution, scope, findings, or qualifications; do not force it into one sentence.",
               "The takeaway should prioritize the central result or advance, while the tldr should supply concise abstract-level context; they must not repeat the same sentence or merely paraphrase each other.",
               "Never return a method name or noun phrase by itself, merely restate the title, add praise or significance, mention the reader or research profile, explain recommendation fit, or mention a recommendation score.",
@@ -169,6 +175,6 @@ export function createOpenAIEditorialSummarizer(config: SummaryConfig): Summariz
     if (!content) {
       throw new Error("Generation API returned empty content.");
     }
-    return parseDigest(responseJson(content), papers.length);
+    return parseDigest(responseJson(content), papers);
   };
 }

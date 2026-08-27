@@ -4,6 +4,7 @@ import packageMetadata from "../package.json";
 import type { DeliveryConfig } from "./app-config.js";
 import type { DailyRomance } from "./daily-romance.js";
 import type { EditorialDigest, PaperBrief } from "./summary.js";
+import { hasMeaningfulAbstract } from "./text.js";
 import type { RecommendedPaper } from "./types.js";
 
 const ABSTRACT_EXCERPT_LIMIT = 320;
@@ -152,6 +153,11 @@ function renderRecommendationScore(paper: RenderablePaper): string {
 
 function renderBrief(brief: PaperBrief | undefined, paper: RenderablePaper): string {
   if (brief) {
+    if (brief.titleOnly) {
+      return `<p style="margin: 18px 0 0 0; color: #424245; font-size: 14px; line-height: 1.6;"><strong class="text-primary" style="color: #1d1d1f;">TLDR:</strong> <span class="text-primary" style="color: #1d1d1f;">${escapeHtml(
+        ensureSentenceEnding(brief.tldr)
+      )}</span></p>`;
+    }
     return `<p style="margin: 18px 0 0 0; color: #424245; font-size: 14px; line-height: 1.6;"><strong class="text-primary" style="color: #1d1d1f;">TLDR:</strong> <span class="text-primary" style="color: #1d1d1f;">${escapeHtml(
       ensureSentenceEnding(brief.takeaway)
     )}</span> <span class="text-tertiary" style="color: #6e6e73;">${escapeHtml(
@@ -159,11 +165,10 @@ function renderBrief(brief: PaperBrief | undefined, paper: RenderablePaper): str
     )}</span></p>`;
   }
 
-  const abstract = paper.abstract.trim()
-    ? truncateText(paper.abstract, ABSTRACT_EXCERPT_LIMIT)
-    : "No abstract provided.";
-  return `<p class="text-secondary" style="margin: 18px 0 0 0; color: #424245; font-size: 14px; line-height: 1.6;"><strong class="text-primary" style="color: #1d1d1f;">Abstract:</strong> ${escapeHtml(
-    ensureSentenceEnding(abstract)
+  const hasAbstract = hasMeaningfulAbstract(paper.abstract);
+  const fallback = hasAbstract ? truncateText(paper.abstract, ABSTRACT_EXCERPT_LIMIT) : paper.title;
+  return `<p class="text-secondary" style="margin: 18px 0 0 0; color: #424245; font-size: 14px; line-height: 1.6;"><strong class="text-primary" style="color: #1d1d1f;">${hasAbstract ? "Abstract" : "Title"}:</strong> ${escapeHtml(
+    ensureSentenceEnding(fallback)
   )}</p>`;
 }
 

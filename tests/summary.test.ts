@@ -88,6 +88,88 @@ describe("createOpenAIEditorialSummarizer", () => {
     expect(requestBody).not.toContain('"subject":');
   });
 
+  it("marks missing abstracts as title-only and requests a Chinese title translation", async () => {
+    const fetchMock = mock(async (_url: string, _init?: RequestInit) =>
+      new Response(
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  ...responseDigest,
+                  papers: [
+                    {
+                      takeaway: "不得展示的推测性研究结论。",
+                      tldr: "基于大型语言模型对复杂相对位置描述进行地理编码。"
+                    }
+                  ]
+                })
+              }
+            }
+          ]
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      )
+    );
+    stubFetch(fetchMock);
+
+    const titleOnlyPaper = {
+      ...papers[0]!,
+      title: "Georeferencing complex relative locality descriptions with large language models",
+      abstract: "."
+    };
+    const result = await createOpenAIEditorialSummarizer(summaryConfig)([titleOnlyPaper], "Urban mobility");
+    const requestBody = String(fetchMock.mock.calls[0]?.[1]?.body);
+
+    expect(result.papers[0]).toEqual({
+      takeaway: "不得展示的推测性研究结论。",
+      tldr: "基于大型语言模型对复杂相对位置描述进行地理编码。",
+      titleOnly: true
+    });
+    expect(requestBody).toContain("Source material: Title only (abstract unavailable)");
+    expect(requestBody).toContain("make the tldr a faithful translation of the title");
+    expect(requestBody).toContain("Headline and overview must remain at title level");
+    expect(requestBody).not.toContain("Abstract: .");
+  });
+
+  it("requests a concise title summary when an English paper has no abstract", async () => {
+    const fetchMock = mock(async (_url: string, _init?: RequestInit) =>
+      new Response(
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  headline: "Large language models support locality georeferencing",
+                  overview: "The work concerns georeferencing relative locality descriptions.",
+                  preheader: "Georeferencing relative locality descriptions.",
+                  papers: [
+                    {
+                      takeaway: "The paper concerns locality georeferencing with language models.",
+                      tldr: "Using large language models to georeference complex relative locality descriptions."
+                    }
+                  ]
+                })
+              }
+            }
+          ]
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      )
+    );
+    stubFetch(fetchMock);
+
+    const result = await createOpenAIEditorialSummarizer({ ...summaryConfig, language: "English" })(
+      [{ ...papers[0]!, abstract: "" }],
+      "Urban mobility"
+    );
+    const requestBody = String(fetchMock.mock.calls[0]?.[1]?.body);
+
+    expect(result.papers[0]?.titleOnly).toBeTrue();
+    expect(requestBody).toContain("Write all reader-facing copy in English");
+    expect(requestBody).toContain("a concise title summary when they are the same language");
+  });
+
   it("accepts JSON wrapped in a markdown code fence", async () => {
     stubFetch(
       mock(async () =>

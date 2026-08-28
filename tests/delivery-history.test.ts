@@ -1,6 +1,6 @@
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it } from "bun:test";
 import { openDeliveryHistory } from "../src/delivery-history.js";
 import type { FeedPaper } from "../src/types.js";
@@ -32,7 +32,7 @@ afterEach(() => {
 
 describe("delivery history", () => {
   it("reports that Delivery may have succeeded when persistence fails", () => {
-    const directoryPath = tempPath().replace("/.delivery-history.json", "");
+    const directoryPath = dirname(tempPath());
     const history = openDeliveryHistory({ path: directoryPath, env: {} });
 
     expect(() => history.confirmSuccessfulDelivery([paper()], new Date("2026-05-11T00:00:00Z"))).toThrow(

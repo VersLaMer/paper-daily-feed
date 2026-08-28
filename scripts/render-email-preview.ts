@@ -54,26 +54,22 @@ const papers: RecommendedPaper[] = [
 ];
 
 const digest: EditorialDigest = {
-  headline: "Spatial structure is becoming part of the model",
-  overview:
-    "Networks, accessibility, and geography are moving from background context into the learning objective itself. This shift supports urban models that transfer across settings without losing spatial meaning.",
-  preheader: "Start with GeoTopo-Net, then explore heat equity and transferable mobility representations.",
+  todayBrief: {
+    headline: "Spatial structure is becoming part of the model",
+    overview:
+      "Networks, accessibility, and geography are moving from background context into the learning objective itself. This shift supports urban models that transfer across settings without losing spatial meaning.",
+    preheader: "Start with GeoTopo-Net, then explore heat equity and transferable mobility representations."
+  },
   papers: [
     {
-      takeaway:
-        "GeoTopo-Net makes street-network topology a first-class signal in short-term bike-sharing prediction.",
       tldr:
         "The model jointly learns continuous-space and street-network dependencies from urban bike-sharing demand data."
     },
     {
-      takeaway:
-        "Pedestrian-network accessibility reveals where missing shaded routes intensify unequal heat exposure.",
       tldr:
         "The study measures neighborhood heat risk through the accessibility of shaded routes on pedestrian networks."
     },
     {
-      takeaway:
-        "Self-supervised mobility representations remain transferable when labeled trajectories are scarce.",
       tldr:
         "The method learns temporal and geographic structure from sparse trajectories for transfer across cities."
     }

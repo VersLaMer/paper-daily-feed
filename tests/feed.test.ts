@@ -1296,12 +1296,12 @@ describe("normalizeFeedItem", () => {
               <title>IEEE paper</title>
               <link>https://example.test/ieee-paper</link>
               <description>IEEE abstract.</description>
-              <dc:creator>Claude Shannon</dc:creator>
+              <authors>Claude Shannon;Grace Hopper;</authors>
               <prism:publicationDate>2026-04-24</prism:publicationDate>
             </item>
           </channel>
         </rss>`,
-      expectedAuthors: ["Claude Shannon"],
+      expectedAuthors: ["Claude Shannon", "Grace Hopper"],
       expectedDate: new Date("2026-04-24T00:00:00.000Z")
     }
   ])("parses representative $label RSS metadata", async ({ label, xml, expectedAuthors, expectedDate }) => {

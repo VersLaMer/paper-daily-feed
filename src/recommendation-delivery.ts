@@ -72,17 +72,17 @@ export async function generateEditorialDigest(
   _env: Env = process.env
 ): Promise<EditorialDigest | null> {
   if (config.enabled && config.apiKey.trim() && recommendations.length > 0) {
-    console.log(`Generating an editorial digest for ${recommendations.length} papers...`);
+    console.log(`Generating Today Brief and ${recommendations.length} paper TLDRs...`);
     try {
       const digest = await createOpenAIEditorialSummarizer(config)(
         recommendations,
         researchProfile(interests)
       );
-      console.log("Generated editorial digest.");
+      console.log("Generated Today Brief and paper TLDRs.");
       return digest;
     } catch (error) {
       console.log(
-        `[summary] editorial digest generation failed; using abstract excerpts: ${
+        `[summary] generation failed; using abstract excerpts: ${
           error instanceof Error ? error.message : String(error)
         }`
       );
@@ -90,7 +90,7 @@ export async function generateEditorialDigest(
     }
   }
 
-  console.log("Skipping editorial digest; using abstract excerpts.");
+  console.log("Skipping LLM summaries; using abstract excerpts.");
   return null;
 }
 

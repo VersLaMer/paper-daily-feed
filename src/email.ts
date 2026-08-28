@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import packageMetadata from "../package.json";
 import type { DeliveryConfig } from "./app-config.js";
 import type { DailyRomance } from "./daily-romance.js";
-import type { EditorialDigest, PaperBrief } from "./summary.js";
+import type { EditorialDigest, PaperBrief, TodayBrief } from "./summary.js";
 import { hasMeaningfulAbstract } from "./text.js";
 import type { RecommendedPaper } from "./types.js";
 
@@ -104,15 +104,15 @@ function renderBrand(editionDate: Date): string {
                   </table>`;
 }
 
-function renderEditorial(digest: EditorialDigest): string {
+function renderEditorial(brief: TodayBrief): string {
   return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top: 20px;">
                     <tr>
                       <td class="editorial-copy" style="padding: 0 20px; text-align: left;">
                         <h1 class="text-primary" style="margin: 0; color: #1d1d1f; font-size: 30px; line-height: 1.14; font-weight: 700; letter-spacing: -0.025em;">${escapeHtml(
-                          digest.headline
+                          brief.headline
                         )}</h1>
                         <p class="text-secondary" style="margin: 14px 0 0 0; color: #424245; font-size: 16px; line-height: 1.58;">${escapeHtml(
-                          digest.overview
+                          brief.overview
                         )}</p>
                       </td>
                     </tr>
@@ -153,21 +153,15 @@ function renderRecommendationScore(paper: RenderablePaper): string {
 
 function renderBrief(brief: PaperBrief | undefined, paper: RenderablePaper): string {
   if (brief) {
-    if (brief.titleOnly) {
-      return `<p style="margin: 18px 0 0 0; color: #424245; font-size: 14px; line-height: 1.6;"><strong class="text-primary" style="color: #1d1d1f;">TLDR:</strong> <span class="text-primary" style="color: #1d1d1f;">${escapeHtml(
-        ensureSentenceEnding(brief.tldr)
-      )}</span></p>`;
-    }
     return `<p style="margin: 18px 0 0 0; color: #424245; font-size: 14px; line-height: 1.6;"><strong class="text-primary" style="color: #1d1d1f;">TLDR:</strong> <span class="text-primary" style="color: #1d1d1f;">${escapeHtml(
-      ensureSentenceEnding(brief.takeaway)
-    )}</span> <span class="text-tertiary" style="color: #6e6e73;">${escapeHtml(
       ensureSentenceEnding(brief.tldr)
     )}</span></p>`;
   }
 
-  const hasAbstract = hasMeaningfulAbstract(paper.abstract);
-  const fallback = hasAbstract ? truncateText(paper.abstract, ABSTRACT_EXCERPT_LIMIT) : paper.title;
-  return `<p class="text-secondary" style="margin: 18px 0 0 0; color: #424245; font-size: 14px; line-height: 1.6;"><strong class="text-primary" style="color: #1d1d1f;">${hasAbstract ? "Abstract" : "Title"}:</strong> ${escapeHtml(
+  const fallback = hasMeaningfulAbstract(paper.abstract)
+    ? truncateText(paper.abstract, ABSTRACT_EXCERPT_LIMIT)
+    : "No abstract provided.";
+  return `<p class="text-secondary" style="margin: 18px 0 0 0; color: #424245; font-size: 14px; line-height: 1.6;"><strong class="text-primary" style="color: #1d1d1f;">Abstract:</strong> ${escapeHtml(
     ensureSentenceEnding(fallback)
   )}</p>`;
 }
@@ -205,7 +199,7 @@ export function renderEmail(
   const briefByUrl = new Map(
     papers.map((paper, index) => [paper.url, digest?.papers[index]] as const)
   );
-  const preheader = digest?.preheader || fallbackPreheader(sortedPapers);
+  const preheader = digest?.todayBrief?.preheader || fallbackPreheader(sortedPapers);
   const content =
     sortedPapers.length === 0
       ? `<tr><td class="paper-card text-secondary border-color" style="background: #ffffff; border: 1px solid #d9ebff; border-radius: 18px; padding: 24px; color: #424245; font-size: 15px; line-height: 1.6;">No recommended papers today.</td></tr>`
@@ -260,7 +254,7 @@ export function renderEmail(
             <tr>
               <td class="header-pad" style="padding: 10px 4px 26px 4px;">
                 ${renderBrand(now)}
-                ${digest ? renderEditorial(digest) : ""}
+                ${digest?.todayBrief ? renderEditorial(digest.todayBrief) : ""}
               </td>
             </tr>
             ${content}

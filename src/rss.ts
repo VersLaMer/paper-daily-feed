@@ -17,6 +17,7 @@ type ParserItem = {
   creator?: string;
   author?: string;
   authors?: string | string[];
+  publisherAuthors?: string | string[];
   dcCreators?: string | string[];
   dcDate?: string;
   prismPublicationDate?: string;
@@ -30,6 +31,7 @@ const parser = new Parser<object, ParserItem>({
   customFields: {
     item: [
       ["author", "authors", { keepArray: true }],
+      ["authors", "publisherAuthors", { keepArray: true }],
       ["dc:creator", "dcCreators", { keepArray: true }],
       ["dc:date", "dcDate"],
       ["prism:publicationDate", "prismPublicationDate"],
@@ -425,6 +427,7 @@ function splitAuthorValue(value: string): string[] {
 function normalizeAuthors(item: ParserItem, publisher?: FeedPublisher): string[] | undefined {
   const candidates = [
     ...asStringArray(item.dcCreators),
+    ...asStringArray(item.publisherAuthors),
     ...asStringArray(item.authors),
     ...asStringArray(item.creator),
     ...asStringArray(item.author)
@@ -445,6 +448,7 @@ function parseTaylorFrancisFirstAffiliation(item: ParserItem, publisher?: FeedPu
 
   const firstAffiliation = [
     ...asStringArray(item.dcCreators),
+    ...asStringArray(item.publisherAuthors),
     ...asStringArray(item.authors),
     ...asStringArray(item.creator),
     ...asStringArray(item.author)
@@ -468,6 +472,7 @@ function normalizeFirstAffiliation(item: ParserItem, publisher?: FeedPublisher):
 function normalizeMetadataText(item: ParserItem): string | undefined {
   const text = [
     ...asStringArray(item.dcCreators),
+    ...asStringArray(item.publisherAuthors),
     ...asStringArray(item.authors),
     ...asStringArray(item.creator),
     ...asStringArray(item.author),

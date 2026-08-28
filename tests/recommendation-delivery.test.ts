@@ -61,7 +61,7 @@ const config: Pick<AppConfig, "interests" | "summary" | "dailyRomance" | "delive
 };
 
 describe("Recommendation Delivery", () => {
-  it("falls back to the original abstract when one AI summary fails", async () => {
+  it("keeps the TLDR layout when one AI summary fails", async () => {
     stubFetch(mock(async () => new Response("unavailable", { status: 503 })));
 
     const result = await deliverRecommendations([recommendation], "preview-email", config, {
@@ -70,7 +70,45 @@ describe("Recommendation Delivery", () => {
     });
 
     expect(result.sent).toBe(false);
-    expect(result.html).toContain("Original abstract retained when summary generation fails.");
+    expect(result.html).toContain(">TLDR:</strong>");
+    expect(result.html).toContain("TLDR 暂时生成失败。");
+    expect(result.html).not.toContain(">Abstract:</strong>");
+  });
+
+  it("keeps successful paper TLDRs when the Today Brief fails", async () => {
+    stubFetch(
+      mock(async (_url: string, init?: RequestInit) => {
+        const requestBody = String(init?.body);
+        if (requestBody.includes("Generate the Today Brief")) {
+          return new Response("unavailable", { status: 503 });
+        }
+        return new Response(
+          JSON.stringify({
+            choices: [
+              {
+                message: {
+                  content: "论文从街道尺度分析交通系统的气候韧性。"
+                }
+              }
+            ]
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        );
+      })
+    );
+
+    const result = await deliverRecommendations(
+      [recommendation],
+      "preview-email",
+      { ...config, dailyRomance: { enabled: false } },
+      {
+        filterUndeliveredPapers: (papers) => papers,
+        confirmSuccessfulDelivery: () => undefined
+      }
+    );
+
+    expect(result.html).toContain("论文从街道尺度分析交通系统的气候韧性。");
+    expect(result.html).not.toContain(">Abstract:</strong>");
   });
 
   it("fetches a random quotation when daily romance is enabled", async () => {
@@ -133,30 +171,28 @@ describe("Recommendation Delivery", () => {
 
   it("keeps the dated main-branch subject when the LLM succeeds", async () => {
     stubFetch(
-      mock(async () =>
-        new Response(
+      mock(async (_url: string, init?: RequestInit) => {
+        const requestBody = String(init?.body);
+        const content = requestBody.includes("Generate the Today Brief")
+          ? {
+              headline: "韧性街道值得优先关注",
+              overview: "街道尺度的空间结构揭示了交通系统的韧性差异。",
+              preheader: "从街道尺度理解交通与气候韧性。"
+            }
+          : "论文从街道尺度分析交通系统的气候韧性。";
+        return new Response(
           JSON.stringify({
             choices: [
               {
                 message: {
-                  content: JSON.stringify({
-                    headline: "韧性街道值得优先关注",
-                    overview: "街道尺度的空间结构揭示了交通系统的韧性差异。",
-                    preheader: "从街道尺度理解交通与气候韧性。",
-                    papers: [
-                      {
-                        takeaway: "街道尺度的空间结构揭示了交通韧性差异。",
-                        tldr: "论文从街道尺度分析交通系统的气候韧性。"
-                      }
-                    ]
-                  })
+                  content: typeof content === "string" ? content : JSON.stringify(content)
                 }
               }
             ]
           }),
           { status: 200, headers: { "Content-Type": "application/json" } }
-        )
-      )
+        );
+      })
     );
     const sendEmail = mock(async () => ({ messageId: "editorial-subject" }));
 

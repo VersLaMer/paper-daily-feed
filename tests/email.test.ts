@@ -153,12 +153,13 @@ describe("renderEmail", () => {
       matchContext: null
     };
     const digest = {
-      headline: "空间网络正在重塑可达性研究",
-      overview: "网络结构正从背景变量转变为可达性模型的核心输入。",
-      preheader: "首选论文直接建模城市交通网络。",
+      todayBrief: {
+        headline: "空间网络正在重塑可达性研究",
+        overview: "网络结构正从背景变量转变为可达性模型的核心输入。",
+        preheader: "首选论文直接建模城市交通网络。"
+      },
       papers: [
         {
-          takeaway: "交通网络约束成为城市出行预测的核心信息",
           tldr: "论文联合建模连续空间与交通网络以预测城市出行。实验覆盖多个城市，以比较模型的迁移能力"
         }
       ]
@@ -188,16 +189,15 @@ describe("renderEmail", () => {
     expect(editorialHtml).not.toContain("Start here");
     expect(editorialHtml).toContain(">TLDR:</strong>");
     expect(editorialHtml).not.toContain("Why read this");
-    expect(editorialHtml).toContain("交通网络约束成为城市出行预测的核心信息。");
     expect(editorialHtml).toContain(
       "论文联合建模连续空间与交通网络以预测城市出行。实验覆盖多个城市，以比较模型的迁移能力。"
     );
     expect(editorialHtml).toContain(
-      'class="text-primary" style="color: #1d1d1f;">交通网络约束成为城市出行预测的核心信息。'
+      'class="text-primary" style="color: #1d1d1f;">论文联合建模连续空间与交通网络以预测城市出行。'
     );
     expect(editorialHtml).not.toContain("它对应城市出行研究");
     expect(editorialHtml).not.toContain("Why it fits&nbsp;&mdash;");
-    expect(editorialHtml).toContain('class="text-tertiary" style="color: #6e6e73;"');
+    expect(editorialHtml).not.toContain('class="text-tertiary" style="color: #6e6e73;"');
     expect(editorialHtml).not.toContain("Takeaway");
     expect(editorialHtml).not.toContain("Why this fits");
     expect(editorialHtml).toContain("AUG 25, 2026");
@@ -222,12 +222,13 @@ describe("renderEmail", () => {
       matchContext: null
     };
     const html = renderEmail([paper], null, {
-      headline: "地理文本处理正在采用大型语言模型",
-      overview: "研究关注相对位置描述的地理编码。",
-      preheader: "复杂相对位置描述的地理编码。",
+      todayBrief: {
+        headline: "地理文本处理正在采用大型语言模型",
+        overview: "研究关注相对位置描述的地理编码。",
+        preheader: "复杂相对位置描述的地理编码。"
+      },
       papers: [
         {
-          takeaway: "这条推测性结论不应显示。",
           tldr: "基于大型语言模型对复杂相对位置描述进行地理编码。",
           titleOnly: true
         }
@@ -235,7 +236,6 @@ describe("renderEmail", () => {
     });
 
     expect(html).toContain("基于大型语言模型对复杂相对位置描述进行地理编码。");
-    expect(html).not.toContain("这条推测性结论不应显示");
   });
 
   it("renders recommended papers from highest score to lowest score", () => {
@@ -282,9 +282,9 @@ describe("renderEmail", () => {
     expect(html).not.toContain("urban heat, shade equity");
     expect(html).not.toContain("Unknown date");
     expect(html).not.toContain("Authors unavailable");
-    expect(html).toContain(">Title:</strong>");
-    expect(html).toContain("Heat risk and urban shade.");
-    expect(html).not.toContain("No abstract provided.");
+    expect(html).toContain(">Abstract:</strong>");
+    expect(html).toContain("No abstract provided.");
+    expect(html).not.toContain(">Title:</strong>");
   });
 });
 

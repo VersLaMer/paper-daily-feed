@@ -1,6 +1,6 @@
 import type { SummaryConfig } from "./app-config.js";
 import { hasMeaningfulAbstract } from "./text.js";
-import type { RecommendedPaper } from "./types.js";
+import type { InterestClusterSummary, RecommendedPaper } from "./types.js";
 
 const MAX_ABSTRACT_INPUT_LENGTH = 4_000;
 const PAPER_TLDR_CONCURRENCY = 4;
@@ -32,7 +32,7 @@ export type EditorialDigest = {
 
 export type SummarizeDigest = (
   papers: RecommendedPaper[],
-  researchProfile: string
+  interestClusters: InterestClusterSummary[]
 ) => Promise<EditorialDigest>;
 
 function compact(value: string, maxLength = Number.POSITIVE_INFINITY): string {
@@ -40,6 +40,13 @@ function compact(value: string, maxLength = Number.POSITIVE_INFINITY): string {
   return normalized.length <= maxLength
     ? normalized
     : `${normalized.slice(0, Math.max(0, maxLength - 3)).trimEnd()}...`;
+}
+
+function requiredText(value: unknown, label: string): string {
+  if (typeof value !== "string" || !value.trim()) {
+    throw new Error(`Generation API returned an invalid ${label}.`);
+  }
+  return compact(value);
 }
 
 function responseJson(content: string): unknown {
@@ -51,13 +58,6 @@ function responseJson(content: string): unknown {
   return JSON.parse(content.slice(start, end + 1));
 }
 
-function requiredText(value: unknown, label: string): string {
-  if (typeof value !== "string" || !value.trim()) {
-    throw new Error(`Generation API returned an invalid ${label}.`);
-  }
-  return compact(value);
-}
-
 function researchSynthesis(value: unknown, label: string): string {
   const text = requiredText(value, label);
   if (BRIEFING_META_LANGUAGE.some((pattern) => pattern.test(text))) {
@@ -66,17 +66,14 @@ function researchSynthesis(value: unknown, label: string): string {
   return text;
 }
 
-function parseTodayBrief(value: unknown): TodayBrief {
-  if (!value || typeof value !== "object") {
-    throw new Error("Generation API returned an invalid Today Brief.");
-  }
-
-  const candidate = value as Record<string, unknown>;
-  return {
-    headline: researchSynthesis(candidate.headline, "headline"),
-    overview: researchSynthesis(candidate.overview, "overview"),
-    preheader: compact(requiredText(candidate.preheader, "preheader"), 180)
-  };
+function plainTextResponse(content: string, label: string): string {
+  const value = content
+    .replace(/^```[a-z]*\s*/iu, "")
+    .replace(/\s*```$/u, "")
+    .replace(new RegExp(`^\\s*${label}\\s*:\\s*`, "iu"), "")
+    .replace(/^["“”']|["“”']$/gu, "")
+    .trim();
+  return requiredText(value, label);
 }
 
 function parsePaperBrief(value: string, paper: RecommendedPaper): PaperBrief {
@@ -124,7 +121,8 @@ function paperSource(paper: RecommendedPaper, index?: number): string {
 async function requestGeneration(
   config: SummaryConfig,
   systemPrompt: string,
-  userPrompt: string
+  userPrompt: string,
+  maxTokens = config.maxTokens
 ): Promise<string> {
   const endpoint = `${config.baseUrl.replace(/\/$/, "")}/chat/completions`;
   const response = await fetch(endpoint, {
@@ -141,7 +139,7 @@ async function requestGeneration(
         { role: "user", content: userPrompt }
       ],
       temperature: 0.2,
-      ...(config.maxTokens ? { max_tokens: config.maxTokens } : {})
+      ...(maxTokens ? { max_tokens: maxTokens } : {})
     })
   });
 
@@ -159,27 +157,97 @@ async function requestGeneration(
   return content;
 }
 
-function todayBriefSystemPrompt(language: string): string {
-  return [
-    "You are the careful editor of a personalized academic paper briefing.",
-    `Write all reader-facing copy in ${language}.`,
-    "Generate the Today Brief from all supplied papers, treating them as the complete set selected for this delivery.",
-    "Use only the supplied titles, abstracts, and research profile. Never invent results, claims, or trends.",
-    "Choose the headline focus after considering the complete set. The headline may foreground one especially noteworthy paper, finding, method, or theme and does not need to represent every supplied paper.",
-    "The headline must be one fluent, complete, conclusion-led sentence with a clear grammatical subject and predicate: name a research area, object, method, or direction and state what is changing, emerging, being revealed, or becoming possible.",
-    "Never return a noun phrase, topic label, colon heading, keyword list, or stack of research terms as the headline.",
-    "The headline and overview must speak directly about the research, never about the briefing process, the repository, the email, the editor, the reader, the recommendation, or the set of selected papers.",
-    "Do not use framing such as this brief, this briefing, today's papers, these papers, the selected papers, we highlight, 本简报, 今天的论文, 这些论文, or 本期推荐.",
-    "The overview must directly explain the headline's research conclusion with concrete methods, findings, contrasts, or shared directions from the supplied source material.",
-    "Synthesize only when a genuine shared thread exists; otherwise state the distinct research directions directly without referring to the papers as a collection.",
-    "When source material is marked Title only (abstract unavailable), remain strictly at title level and do not infer methods, results, contributions, significance, or trends.",
-    "Keep the headline under 14 words, the overview to at most 2 sentences, and the preheader under 140 characters.",
-    "Return only one JSON object with exactly these keys: headline, overview, preheader."
-  ].join(" ");
+function headlineSystemPrompt(language: string): string {
+  return `Write one conclusion-led academic research headline in ${language}. Use only the supplied sources. It may focus on one strong theme or paper. Use a complete sentence under 14 words, never a topic label or briefing language. Return only the headline as plain text.`;
+}
+
+function overviewSystemPrompt(language: string): string {
+  return `Explain the supplied headline in ${language} using concrete information from the supplied sources. Use at most two sentences. Do not mention the email, briefing, recommendation, reader, or selected papers. Do not infer beyond title-only sources. Return only the overview as plain text.`;
+}
+
+function preheaderSystemPrompt(language: string): string {
+  return `Write one email preheader in ${language}, under 140 characters, grounded in the supplied headline and paper titles. Return only the preheader as plain text.`;
 }
 
 function paperBriefSystemPrompt(language: string): string {
   return `You write concise one-sentence TLDR summaries for academic papers. Write the TLDR in ${language}. Use only the supplied source material and do not infer missing information. Return only the TLDR as plain text.`;
+}
+
+function todayBriefSource(
+  papers: RecommendedPaper[],
+  interestClusters: InterestClusterSummary[]
+): string {
+  const clusters = interestClusters.length > 0
+    ? interestClusters.map((cluster, index) => `Cluster ${index + 1}: ${cluster.labels.join("; ")}`).join("\n")
+    : "No reader interest clusters supplied.";
+  return `Reader interest clusters (aggregated labels only):\n${clusters}\n\n${papers
+    .map((paper, index) => paperSource(paper, index))
+    .join("\n\n")}`;
+}
+
+async function generateBriefField(
+  config: SummaryConfig,
+  label: string,
+  systemPrompt: string,
+  source: string,
+  maxTokens: number,
+  validate: (value: string) => string
+): Promise<string> {
+  try {
+    return validate(plainTextResponse(await requestGeneration(config, systemPrompt, source, maxTokens), label));
+  } catch (error) {
+    console.log(
+      `[summary] Retrying Today Brief ${label} after failure: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
+    return validate(
+      plainTextResponse(
+        await requestGeneration(
+          config,
+          systemPrompt,
+          `${source}\n\nCorrection: Return only a valid ${label} as plain text.`,
+          maxTokens
+        ),
+        label
+      )
+    );
+  }
+}
+
+async function generateTodayBrief(
+  config: SummaryConfig,
+  papers: RecommendedPaper[],
+  interestClusters: InterestClusterSummary[]
+): Promise<TodayBrief> {
+  const source = todayBriefSource(papers, interestClusters);
+  const headline = await generateBriefField(
+    config,
+    "headline",
+    headlineSystemPrompt(config.language),
+    source,
+    Math.min(config.maxTokens, 512),
+    (value) => researchSynthesis(value, "headline")
+  );
+  const [overview, preheader] = await Promise.all([
+    generateBriefField(
+      config,
+      "overview",
+      overviewSystemPrompt(config.language),
+      `${source}\n\nHeadline: ${headline}`,
+      Math.min(config.maxTokens, 512),
+      (value) => researchSynthesis(value, "overview")
+    ),
+    generateBriefField(
+      config,
+      "preheader",
+      preheaderSystemPrompt(config.language),
+      `Headline: ${headline}\n\nPaper titles:\n${papers.map((paper) => `- ${paper.title}`).join("\n")}`,
+      Math.min(config.maxTokens, 512),
+      (value) => compact(requiredText(value, "preheader"), 180)
+    )
+  ]);
+  return { headline, overview, preheader };
 }
 
 async function generatePaperBrief(
@@ -238,7 +306,7 @@ async function mapConcurrently<TInput, TOutput>(
 }
 
 export function createOpenAIEditorialSummarizer(config: SummaryConfig): SummarizeDigest {
-  return async (papers, researchProfile) => {
+  return async (papers, interestClusters) => {
     if (!config.apiKey.trim()) {
       throw new Error("Missing summary API key.");
     }
@@ -246,29 +314,7 @@ export function createOpenAIEditorialSummarizer(config: SummaryConfig): Summariz
       throw new Error("Cannot generate an editorial digest without papers.");
     }
 
-    const todayBriefSystem = todayBriefSystemPrompt(config.language);
-    const todayBriefSource = `Reader research profile:\n${compact(researchProfile) || "No profile supplied."}\n\n${papers
-      .map((paper, index) => paperSource(paper, index))
-      .join("\n\n")}`;
-    const todayBriefPromise = requestGeneration(config, todayBriefSystem, todayBriefSource)
-      .then(responseJson)
-      .then(parseTodayBrief)
-      .catch(async (error) => {
-        console.log(
-          `[summary] Retrying Today Brief after failure: ${
-            error instanceof Error ? error.message : String(error)
-          }`
-        );
-        return parseTodayBrief(
-          responseJson(
-            await requestGeneration(
-              config,
-              todayBriefSystem,
-              `${todayBriefSource}\n\nCorrection: Return the requested valid JSON object only.`
-            )
-          )
-        );
-      })
+    const todayBrief = await generateTodayBrief(config, papers, interestClusters)
       .catch((error) => {
         console.log(
           `[summary] Today Brief generation failed; keeping paper TLDRs: ${
@@ -277,7 +323,7 @@ export function createOpenAIEditorialSummarizer(config: SummaryConfig): Summariz
         );
         return null;
       });
-    const paperBriefsPromise = mapConcurrently(
+    const paperBriefs = await mapConcurrently(
       papers,
       PAPER_TLDR_CONCURRENCY,
       async (paper) => {
@@ -293,7 +339,6 @@ export function createOpenAIEditorialSummarizer(config: SummaryConfig): Summariz
         }
       }
     );
-    const [todayBrief, paperBriefs] = await Promise.all([todayBriefPromise, paperBriefsPromise]);
 
     return { todayBrief, papers: paperBriefs };
   };

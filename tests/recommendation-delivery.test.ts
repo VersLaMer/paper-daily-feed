@@ -15,8 +15,18 @@ const recommendation: RecommendedPaper = {
   url: "https://example.test/paper",
   publishedAt: new Date("2026-07-01T00:00:00Z"),
   score: 0.9,
-  matchContext: null
+  matchContext: null,
+  interestCluster: { id: 3, labels: ["resilient urban mobility"] }
 };
+
+function summaryRequestKind(requestBody: string): "headline" | "overview" | "preheader" | "tldr" {
+  const payload = JSON.parse(requestBody) as { messages: Array<{ content: string }> };
+  const prompt = payload.messages[0]?.content ?? "";
+  if (prompt.includes("academic research headline")) return "headline";
+  if (prompt.includes("Explain the supplied headline")) return "overview";
+  if (prompt.includes("email preheader")) return "preheader";
+  return "tldr";
+}
 
 const config: Pick<AppConfig, "interests" | "summary" | "dailyRomance" | "delivery" | "runtime"> = {
   interests: {
@@ -79,7 +89,7 @@ describe("Recommendation Delivery", () => {
     stubFetch(
       mock(async (_url: string, init?: RequestInit) => {
         const requestBody = String(init?.body);
-        if (requestBody.includes("Generate the Today Brief")) {
+        if (summaryRequestKind(requestBody) === "headline") {
           return new Response("unavailable", { status: 503 });
         }
         return new Response(
@@ -170,30 +180,30 @@ describe("Recommendation Delivery", () => {
   });
 
   it("keeps the dated main-branch subject when the LLM succeeds", async () => {
-    stubFetch(
-      mock(async (_url: string, init?: RequestInit) => {
+    const fetchMock = mock(async (_url: string, init?: RequestInit) => {
         const requestBody = String(init?.body);
-        const content = requestBody.includes("Generate the Today Brief")
-          ? {
-              headline: "韧性街道值得优先关注",
-              overview: "街道尺度的空间结构揭示了交通系统的韧性差异。",
-              preheader: "从街道尺度理解交通与气候韧性。"
-            }
-          : "论文从街道尺度分析交通系统的气候韧性。";
+        const kind = summaryRequestKind(requestBody);
+        const content = kind === "headline"
+          ? "韧性街道值得优先关注"
+          : kind === "overview"
+            ? "街道尺度的空间结构揭示了交通系统的韧性差异。"
+            : kind === "preheader"
+              ? "从街道尺度理解交通与气候韧性。"
+              : "论文从街道尺度分析交通系统的气候韧性。";
         return new Response(
           JSON.stringify({
             choices: [
               {
                 message: {
-                  content: typeof content === "string" ? content : JSON.stringify(content)
+                  content
                 }
               }
             ]
           }),
           { status: 200, headers: { "Content-Type": "application/json" } }
         );
-      })
-    );
+      });
+    stubFetch(fetchMock);
     const sendEmail = mock(async () => ({ messageId: "editorial-subject" }));
 
     await deliverRecommendations(
@@ -214,5 +224,8 @@ describe("Recommendation Delivery", () => {
       expect.stringContaining("韧性街道值得优先关注"),
       "Paper feed for 25th August 2026"
     );
+    const requestBodies = fetchMock.mock.calls.map((call) => String(call[1]?.body));
+    expect(requestBodies.some((body) => body.includes("Cluster 1: resilient urban mobility"))).toBeTrue();
+    expect(requestBodies.every((body) => !body.includes(config.interests.profile.summary))).toBeTrue();
   });
 });

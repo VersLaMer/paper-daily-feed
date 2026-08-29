@@ -5,7 +5,13 @@ import {
   type EmbedTexts,
   type LoadTransformers
 } from "./embeddings.js";
-import type { FeedPaper, InterestDocument, MatchContext, RecommendedPaper } from "./types.js";
+import type {
+  FeedPaper,
+  InterestClusterSummary,
+  InterestDocument,
+  MatchContext,
+  RecommendedPaper
+} from "./types.js";
 
 export {
   createLocalEmbedder,
@@ -118,7 +124,7 @@ function centroid(vectors: number[][]): number[] {
   return values.map((value) => value / vectors.length);
 }
 
-type InterestCluster = {
+type InternalInterestCluster = {
   id: number;
   interests: InterestDocument[];
   embeddings: number[][];
@@ -150,8 +156,8 @@ function buildInterestClusters(
   interests: InterestDocument[],
   embeddings: number[][],
   threshold: number
-): InterestCluster[] {
-  const clusters: InterestCluster[] = [];
+): InternalInterestCluster[] {
+  const clusters: InternalInterestCluster[] = [];
 
   interests.forEach((interest, index) => {
     const embedding = embeddings[index] ?? [];
@@ -188,7 +194,10 @@ function toMatchContext(interest: InterestDocument | undefined): MatchContext | 
   };
 }
 
-function bestInterestInCluster(candidateEmbedding: number[], cluster: InterestCluster): InterestDocument | undefined {
+function bestInterestInCluster(
+  candidateEmbedding: number[],
+  cluster: InternalInterestCluster
+): InterestDocument | undefined {
   let bestScore = Number.NEGATIVE_INFINITY;
   let bestInterest: InterestDocument | undefined;
 
@@ -208,9 +217,25 @@ type ScoredPaper = RecommendedPaper & {
 };
 
 type ClusterScore = {
-  cluster: InterestCluster;
+  cluster: InternalInterestCluster;
   score: number;
 };
+
+function clusterSummary(cluster: InternalInterestCluster): InterestClusterSummary | undefined {
+  const labels = cluster.interests
+    .filter((interest) => interest.source === "profile" && interest.polarity !== "negative")
+    .flatMap((interest) => {
+      if (interest.kind === "summary") {
+        return [interest.text.replace(/^Summary:\s*/iu, "").trim()];
+      }
+      return [interest.label?.trim() || interest.title.trim(), ...interest.topics.map((topic) => topic.trim())];
+    })
+    .filter(Boolean)
+    .filter((label, index, all) => all.findIndex((candidate) => candidate.toLocaleLowerCase() === label.toLocaleLowerCase()) === index)
+    .slice(0, 6);
+
+  return labels.length > 0 ? { id: cluster.id, labels } : undefined;
+}
 
 const MULTI_INTEREST_MAX_BONUS = 0.18;
 const MULTI_INTEREST_HALF_SATURATION = 1;
@@ -324,11 +349,13 @@ export async function rankPapers(
       const finalScore =
         (bestPositive?.score ?? 0) - config.avoidPenaltyWeight * Math.max(0, avoidPenalty);
       const bestInterest = bestPositive ? bestInterestInCluster(candidateEmbedding, bestPositive.cluster) : undefined;
+      const interestCluster = bestPositive ? clusterSummary(bestPositive.cluster) : undefined;
 
       return {
         ...candidate,
         score: clampScore(finalScore),
         matchContext: toMatchContext(bestInterest),
+        ...(interestCluster ? { interestCluster } : {}),
         clusterId: bestPositive?.cluster.id ?? -1
       };
     })

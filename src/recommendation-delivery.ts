@@ -3,7 +3,7 @@ import type { DeliveryHistorySession } from "./delivery-history.js";
 import { fetchDailyRomance, type DailyRomance } from "./daily-romance.js";
 import { renderEmail, sendEmail } from "./email.js";
 import { createOpenAIEditorialSummarizer, type EditorialDigest } from "./summary.js";
-import type { RecommendedPaper } from "./types.js";
+import type { InterestClusterSummary, RecommendedPaper } from "./types.js";
 
 type Env = Record<string, string | undefined>;
 
@@ -51,34 +51,32 @@ function datedEmailSubject(date: Date): string {
   })} ${date.getUTCFullYear()}`;
 }
 
-function researchProfile(interests: AppConfig["interests"]): string {
-  const profile = interests.profile;
-  return [
-    profile.summary,
-    profile.topics.length > 0 ? `Topics: ${profile.topics.join(", ")}` : "",
-    profile.methods.length > 0 ? `Methods: ${profile.methods.join(", ")}` : "",
-    profile.favoriteJournals.length > 0
-      ? `Favorite journals: ${profile.favoriteJournals.join(", ")}`
-      : ""
-  ]
-    .filter(Boolean)
-    .join("\n");
+function selectedInterestClusters(recommendations: RecommendedPaper[]): InterestClusterSummary[] {
+  const clusters = new Map<number, InterestClusterSummary>();
+  for (const recommendation of recommendations) {
+    const cluster = recommendation.interestCluster;
+    if (!cluster || clusters.has(cluster.id)) continue;
+    clusters.set(cluster.id, cluster);
+  }
+  return [...clusters.values()];
 }
 
 export async function generateEditorialDigest(
   recommendations: RecommendedPaper[],
-  config: SummaryConfig,
-  interests: AppConfig["interests"],
-  _env: Env = process.env
+  config: SummaryConfig
 ): Promise<EditorialDigest | null> {
   if (config.enabled && config.apiKey.trim() && recommendations.length > 0) {
     console.log(`Generating Today Brief and ${recommendations.length} paper TLDRs...`);
     try {
       const digest = await createOpenAIEditorialSummarizer(config)(
         recommendations,
-        researchProfile(interests)
+        selectedInterestClusters(recommendations)
       );
-      console.log("Generated Today Brief and paper TLDRs.");
+      console.log(
+        digest.todayBrief
+          ? "Generated Today Brief and paper TLDRs."
+          : "Generated paper TLDRs; Today Brief was unavailable."
+      );
       return digest;
     } catch (error) {
       console.log(
@@ -109,7 +107,7 @@ export function renderRecommendationEmail(
 export async function deliverRecommendations(
   recommendations: RecommendedPaper[],
   mode: DeliveryMode,
-  config: Pick<AppConfig, "interests" | "summary" | "dailyRomance" | "delivery" | "runtime">,
+  config: Pick<AppConfig, "summary" | "dailyRomance" | "delivery" | "runtime">,
   deliveryHistory: DeliveryHistorySession,
   env: Env = process.env,
   now = new Date(),
@@ -120,7 +118,7 @@ export async function deliverRecommendations(
     return { recommendationCount: 0, html: "", sent: false, deliveryDetails: "" };
   }
 
-  const digest = await generateEditorialDigest(recommendations, config.summary, config.interests, env);
+  const digest = await generateEditorialDigest(recommendations, config.summary);
   const romance = config.dailyRomance.enabled
     ? await (dependencies.fetchDailyRomance ?? fetchDailyRomance)()
     : null;

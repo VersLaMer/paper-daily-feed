@@ -44,6 +44,11 @@ export type MatchContext = {
   bestMatchTopics: string[];
 };
 
+export type InterestClusterSummary = {
+  id: number;
+  labels: string[];
+};
+
 export type CorpusPaper = {
   title: string;
   abstract: string;
@@ -53,5 +58,6 @@ export type CorpusPaper = {
 export type RecommendedPaper = FeedPaper & {
   score: number;
   matchContext: MatchContext | null;
+  interestCluster?: InterestClusterSummary;
   tldr?: string;
 };

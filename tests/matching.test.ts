@@ -208,6 +208,37 @@ describe("rankPapers", () => {
     expect(ranked.map((paper) => paper.title)).toEqual(["Strong transport", "Climate paper", "Second transport"]);
   });
 
+  it("exposes aggregated profile cluster labels without Zotero source text", async () => {
+    const ranked = await rankPapers(
+      { ...matchingConfig, minScore: 0 },
+      [candidate("Transit resilience", "Accessible transit networks.")],
+      [
+        {
+          ...interest("Urban mobility", "Topic: urban mobility", ["urban mobility"]),
+          kind: "topic",
+          label: "Urban mobility",
+          polarity: "positive"
+        },
+        {
+          ...interest(
+            "Private Zotero paper title",
+            "Title: Private Zotero paper title\nAbstract: Private Zotero abstract.",
+            [],
+            "zotero"
+          ),
+          kind: "zotero-paper",
+          label: "Private Zotero paper title",
+          polarity: "positive"
+        }
+      ],
+      {},
+      async () => [[1, 0], [1, 0], [0.99, 0.01]]
+    );
+
+    expect(ranked[0]?.interestCluster).toEqual({ id: 0, labels: ["Urban mobility"] });
+    expect(JSON.stringify(ranked[0]?.interestCluster)).not.toContain("Private Zotero");
+  });
+
   it("boosts papers that strongly match multiple positive interest clusters", async () => {
     const ranked = await rankPapers(
       { ...matchingConfig, minScore: 0.35, clusterSimilarityThreshold: 0.9 },

@@ -1,5 +1,6 @@
 import { writeFile } from "node:fs/promises";
 import { renderEmail } from "../src/email.js";
+import { renderMaintenanceEmail, type MaintenanceNotice } from "../src/maintenance.js";
 import type { EditorialDigest } from "../src/summary.js";
 import type { RecommendedPaper } from "../src/types.js";
 
@@ -86,6 +87,45 @@ const romance = {
 
 const date = new Date("2026-08-25T00:00:00Z");
 
+const maintenancePreviews: Array<{ filename: string; notice: MaintenanceNotice }> = [
+  {
+    filename: "docs/email-preview-maintenance-workflow-permission.html",
+    notice: {
+      reason: "workflow-permission",
+      repository: "reader/paper-daily-feed",
+      details: ".github/workflows/daily.yml\n.github/workflows/maintenance.yml",
+      runUrl: "https://github.com/reader/paper-daily-feed/actions/runs/42"
+    }
+  },
+  {
+    filename: "docs/email-preview-maintenance-rebase-conflict.html",
+    notice: {
+      reason: "rebase-conflict",
+      repository: "reader/paper-daily-feed",
+      details: "CONTRIBUTING.md\nsrc/email.ts",
+      runUrl: "https://github.com/reader/paper-daily-feed/actions/runs/43"
+    }
+  },
+  {
+    filename: "docs/email-preview-maintenance-push-failed.html",
+    notice: {
+      reason: "push-failed",
+      repository: "reader/paper-daily-feed",
+      details: "Push to main was rejected by branch protection.",
+      runUrl: "https://github.com/reader/paper-daily-feed/actions/runs/44"
+    }
+  },
+  {
+    filename: "docs/email-preview-maintenance-test.html",
+    notice: {
+      reason: "test",
+      repository: "reader/paper-daily-feed",
+      details: "",
+      runUrl: "https://github.com/reader/paper-daily-feed/actions/runs/45"
+    }
+  }
+];
+
 function resolvePreviewIcons(html: string): string {
   return html.replaceAll("cid:paper-daily-feed-icon", "./paper-daily-feed-icon.png");
 }
@@ -98,7 +138,12 @@ await Promise.all([
   writeFile(
     "docs/email-preview-no-llm.html",
     resolvePreviewIcons(renderEmail(papers, romance, null, date))
+  ),
+  ...maintenancePreviews.map(({ filename, notice }) =>
+    writeFile(filename, resolvePreviewIcons(renderMaintenanceEmail(notice)))
   )
 ]);
 
-console.log("Rendered docs/email-preview.html and docs/email-preview-no-llm.html");
+console.log(
+  `Rendered recommendation previews and ${maintenancePreviews.length} maintenance previews.`
+);

@@ -80,8 +80,8 @@ describe("Recommendation Delivery", () => {
     });
 
     expect(result.sent).toBe(false);
-    expect(result.html).toContain(">TLDR:</strong>");
     expect(result.html).toContain("TLDR 暂时生成失败。");
+    expect(result.html).not.toContain(">TLDR:</strong>");
     expect(result.html).not.toContain(">Abstract:</strong>");
   });
 
@@ -152,7 +152,11 @@ describe("Recommendation Delivery", () => {
   it("uses the dated main-branch subject without an LLM", async () => {
     const fetchMock = mock(async () => new Response("unexpected"));
     stubFetch(fetchMock);
-    const sendEmail = mock(async () => ({ messageId: "fallback-subject" }));
+    const sendEmail = mock(
+      async (_delivery: AppConfig["delivery"], _html: string, _subject: string) => ({
+        messageId: "fallback-subject"
+      })
+    );
 
     await deliverRecommendations(
       [recommendation],
@@ -174,9 +178,10 @@ describe("Recommendation Delivery", () => {
     expect(fetchMock).not.toHaveBeenCalled();
     expect(sendEmail).toHaveBeenCalledWith(
       config.delivery,
-      expect.stringContaining(">Abstract:</strong>"),
+      expect.stringContaining("Original abstract retained when summary generation fails."),
       "Paper feed for 25th August 2026"
     );
+    expect(sendEmail.mock.calls[0]?.[1]).not.toContain(">Abstract:</strong>");
   });
 
   it("keeps the dated main-branch subject when the LLM succeeds", async () => {

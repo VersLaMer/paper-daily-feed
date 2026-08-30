@@ -17,8 +17,13 @@ describe("renderMaintenanceEmail", () => {
     expect(html).toContain("Maintenance action required");
     expect(html).toContain("需要手动完成更新");
     expect(html).toContain("检测到新版本");
-    expect(html).toContain("#e8f4ff");
+    expect(html).not.toContain("#e8f4ff");
     expect(html).toContain('width="600"');
+    expect(html).toContain('src="cid:paper-daily-feed-icon"');
+    expect(html).toContain("border-bottom: 1px solid #d2d2d7");
+    expect(html).toContain("font-size: 14px; font-weight: 400; letter-spacing: 0.06em;");
+    expect(html).not.toContain("border: 1px solid #d9ebff");
+    expect(html).toContain('class="maintenance-main"');
     expect(html).toContain("https://github.com/settings/personal-access-tokens/new");
     expect(html).toContain("https://github.com/reader/paper-daily-feed/settings/secrets/actions/new");
     expect(html).toContain("MAINTENANCE_SYNC_TOKEN");
@@ -27,6 +32,19 @@ describe("renderMaintenanceEmail", () => {
     expect(html).toContain(".github/workflows/daily.yml");
     expect(html).toContain("https://github.com/reader/paper-daily-feed/actions/runs/42");
     expect(html).toContain(packageMetadata.homepage);
+    expect(html).toContain("by <a href=\"https://nehsgnail.github.io/\"");
+    expect(html).toContain('text-decoration: none;">paper-daily-feed</a>');
+    expect(html).toContain('text-decoration: none;">nehSgnaiL</a>');
+    expect(html).toContain(">Manage settings</a>");
+    expect(html).toContain('style="color: inherit; text-decoration: underline;">Manage settings</a>');
+    expect(html).toContain(`${packageMetadata.homepage}#customization`);
+    expect(html).not.toContain("Unsubscribe");
+    expect(html).toContain(".header-meta { display: none !important; }");
+    expect(html).toContain(".action-link { text-decoration: underline !important; }");
+    expect(html).toContain('lang="zh-CN"');
+    expect(html).toContain(
+      "Maintenance action required: An update is available, but it changes GitHub workflow files."
+    );
   });
 
   it("escapes repository-provided details", () => {

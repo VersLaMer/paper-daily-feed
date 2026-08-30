@@ -1,6 +1,12 @@
 import packageMetadata from "../package.json";
 import type { DeliveryConfig } from "./app-config.js";
 import { sendEmail } from "./email.js";
+import {
+  EMAIL_WIDTH,
+  renderSharedEmailFooter,
+  renderSharedEmailHeader,
+  SHARED_EMAIL_STYLES
+} from "./email-layout.js";
 
 type Env = Record<string, string | undefined>;
 
@@ -22,7 +28,6 @@ type NoticeContent = {
   steps: Array<{ en: string; zh: string }>;
 };
 
-const EMAIL_WIDTH = 600;
 const UPSTREAM_URL = packageMetadata.homepage;
 
 function escapeHtml(value: string): string {
@@ -32,6 +37,12 @@ function escapeHtml(value: string): string {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
+}
+
+function truncateText(value: string, maxLength: number): string {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (normalized.length <= maxLength) return normalized;
+  return `${normalized.slice(0, maxLength - 3).trimEnd()}...`;
 }
 
 function requireReason(value: string | undefined): MaintenanceReason {
@@ -144,8 +155,8 @@ function renderSteps(steps: Array<{ en: string; zh: string }>): string {
   return steps
     .map(
       (step, index) => `<tr>
-                        <td valign="top" style="width: 30px; padding: 0 10px 14px 0; color: #007aff; font-size: 14px; font-weight: 700;">${index + 1}.</td>
-                        <td style="padding: 0 0 14px 0; color: #424245; font-size: 14px; line-height: 1.6;">${step.en}<br><span style="color: #6e6e73;">${step.zh}</span></td>
+                        <td valign="top" class="small-accent" style="width: 28px; padding: 0 10px 18px 0; color: #007aff; font-size: 14px; font-weight: 700; line-height: 1.5;">${index + 1}.</td>
+                        <td class="maintenance-copy text-primary" style="padding: 0 0 18px 0; color: #1d1d1f; font-size: 17px; line-height: 1.5;">${step.en}<span lang="zh-CN" class="text-secondary" style="display: block; margin-top: 6px; color: #6e6e73;">${step.zh}</span></td>
                       </tr>`
     )
     .join("\n");
@@ -153,9 +164,10 @@ function renderSteps(steps: Array<{ en: string; zh: string }>): string {
 
 export function renderMaintenanceEmail(notice: MaintenanceNotice): string {
   const content = noticeContent(notice);
+  const preheader = truncateText(`${content.title}: ${content.introduction}`, 150);
   const details = notice.details.trim()
-    ? `<p style="margin: 20px 0 8px 0; color: #1d1d1f; font-size: 14px; font-weight: 700;">Affected files or details / 受影响文件或详情</p>
-                  <pre style="margin: 0; padding: 14px; overflow-wrap: anywhere; white-space: pre-wrap; background: #f5f5f7; border: 1px solid #e5e5e7; border-radius: 8px; color: #424245; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; line-height: 1.5;">${escapeHtml(notice.details.trim())}</pre>`
+    ? `<p class="text-primary" style="margin: 10px 0 8px 0; color: #1d1d1f; font-size: 14px; font-weight: 700;">Affected files or details / 受影响文件或详情</p>
+                  <pre class="code-block text-secondary border-color" style="margin: 0; padding: 14px; overflow-wrap: anywhere; white-space: pre-wrap; background: #f5f5f7; border: 1px solid #e5e5e7; border-radius: 8px; color: #424245; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; line-height: 1.5;">${escapeHtml(notice.details.trim())}</pre>`
     : "";
 
   return `<!doctype html>
@@ -164,35 +176,56 @@ export function renderMaintenanceEmail(notice: MaintenanceNotice): string {
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="x-apple-disable-message-reformatting">
+    <meta name="format-detection" content="telephone=no,address=no,email=no,date=no,url=no">
+    <meta name="color-scheme" content="light dark">
+    <meta name="supported-color-schemes" content="light dark">
     <title>${content.title}</title>
+    <style>
+      ${SHARED_EMAIL_STYLES}
+      .maintenance-main a { color: #007aff !important; text-decoration: underline !important; }
+      @media only screen and (max-width: 680px) {
+        .page-pad { padding: 24px 10px !important; }
+        .email-shell { width: 100% !important; max-width: 100% !important; table-layout: fixed !important; }
+        .header-pad, .maintenance-main, .maintenance-footer { padding-left: 18px !important; padding-right: 18px !important; }
+        .maintenance-title { font-size: 28px !important; }
+      }
+      @media only screen and (min-width: 600px) {
+        .maintenance-copy { font-size: 18px !important; }
+      }
+      @media (prefers-color-scheme: dark) {
+        .maintenance-main a { color: #0a84ff !important; }
+      }
+      [data-ogsc] .maintenance-main a { color: #0a84ff !important; }
+    </style>
   </head>
-  <body bgcolor="#e8f4ff" style="margin: 0; padding: 0; background: #e8f4ff;">
-    <div style="display: none; max-height: 0; overflow: hidden; opacity: 0; color: transparent; mso-hide: all;">A paper-daily-feed update needs your attention.</div>
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#e8f4ff" style="width: 100%; background: #e8f4ff; border-collapse: collapse;">
+  <body class="email-body" style="margin: 0; padding: 0;">
+    <div style="display: none; max-height: 0; overflow: hidden; opacity: 0; color: transparent; mso-hide: all;">${escapeHtml(preheader)}</div>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="page" style="width: 100%; border-collapse: collapse;">
       <tr>
-        <td align="center" style="padding: 34px 16px; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif; color: #1d1d1f;">
-          <table role="presentation" width="${EMAIL_WIDTH}" cellpadding="0" cellspacing="0" border="0" align="center" style="width: 100%; max-width: ${EMAIL_WIDTH}px; border-collapse: collapse;">
+        <td align="center" class="page-pad" style="padding: 34px 16px; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; color: #1d1d1f;">
+          <table role="presentation" width="${EMAIL_WIDTH}" cellpadding="0" cellspacing="0" border="0" align="center" class="email-shell" style="width: 100%; max-width: ${EMAIL_WIDTH}px; table-layout: fixed; border-collapse: collapse;">
             <tr>
-              <td align="center" style="padding: 10px 2px 26px 2px; text-align: center;">
-                <p style="margin: 0 0 8px 0; color: #007aff; font-size: 12px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;">${content.eyebrow}</p>
-                <h1 style="font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif; font-size: 34px; line-height: 1.12; margin: 0; color: #007aff; letter-spacing: 0;">${content.title}</h1>
-                <p style="margin: 7px 0 0 0; color: #007aff; font-size: 20px; font-weight: 700; line-height: 1.3;">${content.titleZh}</p>
-                <p style="margin: 12px 0 0 0; color: #6e6e73; font-size: 15px; line-height: 1.55;">${content.introduction}</p>
-                <p style="margin: 8px 0 0 0; color: #6e6e73; font-size: 15px; line-height: 1.55;">${content.introductionZh}</p>
+              <td class="header-pad" style="padding: 10px 20px 26px 20px;">
+                ${renderSharedEmailHeader("MAINTENANCE")}
               </td>
             </tr>
             <tr>
-              <td style="background: #ffffff; border: 1px solid #d9ebff; border-radius: 18px; padding: 24px; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;">
-                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%; border-collapse: collapse;">
+              <td class="maintenance-main" style="padding: 0 20px 32px 20px; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+                <p class="small-accent" style="margin: 0 0 8px 0; color: #007aff; font-size: 14px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;">${content.eyebrow}</p>
+                <h1 class="maintenance-title text-primary" style="margin: 0; color: #1d1d1f; font-size: 30px; line-height: 1.14; font-weight: 700; letter-spacing: -0.025em;">${content.title}</h1>
+                <p lang="zh-CN" class="accent" style="margin: 7px 0 0 0; color: #007aff; font-size: 20px; font-weight: 700; line-height: 1.3;">${content.titleZh}</p>
+                <p class="maintenance-copy text-secondary" style="margin: 16px 0 0 0; color: #424245; font-size: 17px; line-height: 1.5;">${content.introduction}</p>
+                <p lang="zh-CN" class="maintenance-copy text-secondary" style="margin: 8px 0 0 0; color: #6e6e73; font-size: 17px; line-height: 1.5;">${content.introductionZh}</p>
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%; margin-top: 28px; border-collapse: collapse;">
                   ${renderSteps(content.steps)}
                 </table>
                 ${details}
-                <p style="margin: 20px 0 0 0; color: #6e6e73; font-size: 12px; line-height: 1.5;">Repository / 仓库: ${escapeHtml(notice.repository)} · <a href="${escapeHtml(notice.runUrl)}" style="color: #007aff;">View workflow run / 查看工作流</a></p>
+                <p class="text-tertiary" style="margin: 20px 0 0 0; color: #6e6e73; font-size: 14px; line-height: 1.5;">Repository / 仓库: ${escapeHtml(notice.repository)} · <a href="${escapeHtml(notice.runUrl)}" class="accent" style="color: #007aff;">View workflow run / 查看工作流</a></p>
               </td>
             </tr>
             <tr>
-              <td align="center" style="padding: 22px 2px 4px 2px; text-align: center; color: #6e6e73; font-size: 13px; line-height: 1.6;">
-                Built with <a href="${UPSTREAM_URL}" style="color: #007aff; font-weight: 700; text-decoration: none;">paper-daily-feed</a>.
+              <td align="left" class="maintenance-footer text-tertiary" style="padding: 10px 20px 4px 20px; text-align: left; color: #86868b; font-size: 14px; line-height: 1.5;">
+                ${renderSharedEmailFooter()}
               </td>
             </tr>
           </table>

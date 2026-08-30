@@ -8,8 +8,8 @@ const GENERATION_REQUEST_CONCURRENCY = 4;
 const GENERATION_REQUEST_TIMEOUT_MS = 60_000;
 const MAX_HEADLINE_CJK_UNITS = 14;
 const MAX_HEADLINE_WORDS = 10;
-const MAX_OVERVIEW_CJK_UNITS = 32;
-const MAX_OVERVIEW_WORDS = 20;
+const MAX_OVERVIEW_CJK_UNITS = 42;
+const MAX_OVERVIEW_WORDS = 24;
 const BRIEFING_META_LANGUAGE = [
   /\b(?:this|the) (?:brief|briefing|digest|newsletter)\b/iu,
   /\b(?:today['’]s|these|the selected) papers\b/iu,
@@ -247,7 +247,7 @@ function headlineSystemPrompt(language: string): string {
 }
 
 function overviewSystemPrompt(language: string): string {
-  return `Write one compact editorial line in ${language}. Add a fresh source-backed detail beyond the headline, using fresh wording. Aim for 12–24 Chinese characters or 8–16 English words. Return only the line.`;
+  return `Write one concise editorial sentence in ${language}. Synthesize the strongest one or two source insights into one useful takeaway beyond the headline. Aim for 24–36 Chinese characters or 12–20 English words. Return only the sentence.`;
 }
 
 function paperBriefSystemPrompt(language: string, hasAbstract: boolean): string {
@@ -294,7 +294,7 @@ async function generateBriefField(
     const correction = label === "headline"
       ? "Compress the headline into a subject–verb–object phrase like “交通扩展改变出行”. Maximum: 10 English words or 14 Chinese characters. Return only the headline."
       : label === "overview"
-        ? "Compress to one clause. Target 16 Chinese characters or 12 English words, like “交通扩展重塑城市出行”. Return only the line."
+        ? "Rewrite as one cohesive takeaway from the strongest one or two source insights, using fresh wording. Target 24–36 Chinese characters or 12–20 English words. Return only the sentence."
       : `Write a valid ${label} as plain text using the source rules.`;
     return validate(
       plainTextResponse(

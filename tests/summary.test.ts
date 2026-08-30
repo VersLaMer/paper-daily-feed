@@ -43,7 +43,7 @@ function systemPrompt(requestBody: string): string {
 function successfulContent(requestBody: string): string {
   const prompt = systemPrompt(requestBody);
   if (prompt.includes("subject–verb–object phrase")) return responseDigest.headline;
-  if (prompt.includes("compact editorial line")) return responseDigest.overview;
+  if (prompt.includes("concise editorial sentence")) return responseDigest.overview;
   return responseDigest.tldr;
 }
 
@@ -68,7 +68,7 @@ describe("createOpenAIEditorialSummarizer", () => {
       requestKinds.push(
         prompt.includes("subject–verb–object phrase")
           ? "headline"
-          : prompt.includes("compact editorial line")
+          : prompt.includes("concise editorial sentence")
             ? "overview"
             : "tldr"
       );
@@ -92,7 +92,7 @@ describe("createOpenAIEditorialSummarizer", () => {
       systemPrompt(body).includes("subject–verb–object phrase")
     );
     const overviewBody = requestBodies.find((body) =>
-      systemPrompt(body).includes("compact editorial line")
+      systemPrompt(body).includes("concise editorial sentence")
     );
     const tldrBody = requestBodies.find((body) => systemPrompt(body).includes("paper summary"));
     expect(headlineBody).not.toContain("Reader interest clusters");
@@ -112,8 +112,8 @@ describe("createOpenAIEditorialSummarizer", () => {
     expect(prompts.find((prompt) => prompt.includes("subject–verb–object phrase"))).toContain(
       "10 English words or 14 Chinese characters"
     );
-    expect(prompts.find((prompt) => prompt.includes("compact editorial line"))).toContain(
-      "12–24 Chinese characters or 8–16 English words"
+    expect(prompts.find((prompt) => prompt.includes("concise editorial sentence"))).toContain(
+      "strongest one or two source insights"
     );
   });
 
@@ -172,7 +172,7 @@ describe("createOpenAIEditorialSummarizer", () => {
       systemPrompt(body).includes("subject–verb–object phrase")
     );
     const overviewBody = requestBodies.find((body) =>
-      systemPrompt(body).includes("compact editorial line")
+      systemPrompt(body).includes("concise editorial sentence")
     );
     expect(headlineBody).toContain("Candidate 1");
     expect(headlineBody).toContain("Urban mobility");
@@ -305,7 +305,7 @@ describe("createOpenAIEditorialSummarizer", () => {
     stubFetch(
       mock(async (_url: string, init?: RequestInit) => {
         const body = String(init?.body);
-        if (systemPrompt(body).includes("compact editorial line")) {
+        if (systemPrompt(body).includes("concise editorial sentence")) {
           overviewRequests += 1;
           return generationResponse(
             overviewRequests === 1
@@ -328,7 +328,7 @@ describe("createOpenAIEditorialSummarizer", () => {
     stubFetch(
       mock(async (_url: string, init?: RequestInit) => {
         const body = String(init?.body);
-        if (systemPrompt(body).includes("compact editorial line")) {
+        if (systemPrompt(body).includes("concise editorial sentence")) {
           overviewRequests += 1;
           return generationResponse(
             overviewRequests === 1 ? "城市交通".repeat(11) : responseDigest.overview
@@ -349,7 +349,7 @@ describe("createOpenAIEditorialSummarizer", () => {
     stubFetch(
       mock(async (_url: string, init?: RequestInit) => {
         const body = String(init?.body);
-        if (systemPrompt(body).includes("compact editorial line")) {
+        if (systemPrompt(body).includes("concise editorial sentence")) {
           overviewRequests += 1;
           return generationResponse(
             overviewRequests === 1
@@ -372,7 +372,7 @@ describe("createOpenAIEditorialSummarizer", () => {
     stubFetch(
       mock(async (_url: string, init?: RequestInit) => {
         const body = String(init?.body);
-        if (systemPrompt(body).includes("compact editorial line")) {
+        if (systemPrompt(body).includes("concise editorial sentence")) {
           overviewRequests += 1;
           return generationResponse(
             overviewRequests === 1

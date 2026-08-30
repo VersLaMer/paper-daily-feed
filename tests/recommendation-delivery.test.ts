@@ -23,7 +23,7 @@ function summaryRequestKind(requestBody: string): "headline" | "overview" | "tld
   const payload = JSON.parse(requestBody) as { messages: Array<{ content: string }> };
   const prompt = payload.messages[0]?.content ?? "";
   if (prompt.includes("subject–verb–object phrase")) return "headline";
-  if (prompt.includes("compact editorial line")) return "overview";
+  if (prompt.includes("concise editorial sentence")) return "overview";
   return "tldr";
 }
 

@@ -90,14 +90,15 @@ describe("createOpenAIEditorialSummarizer", () => {
       },
       papers: [{ tldr: responseDigest.tldr }]
     });
-    expect(requestKinds).toEqual(["headline", "overview", "preheader", "tldr"]);
+    expect(requestKinds).toEqual(["headline", "tldr", "overview", "preheader"]);
     const requestBodies = fetchMock.mock.calls.map((call) => String(call[1]?.body));
-    const briefBodies = requestBodies.slice(0, 3);
+    const briefBodies = requestBodies.filter((body) => !systemPrompt(body).includes("TLDR summaries"));
+    const tldrBody = requestBodies.find((body) => systemPrompt(body).includes("TLDR summaries"));
     expect(briefBodies[0]).toContain("Cluster 1: urban mobility; transport equity");
     expect(briefBodies[0]).toContain("network structure and equitable urban mobility");
     expect(briefBodies.every((body) => !body.includes("Return only one JSON object"))).toBeTrue();
     expect(briefBodies.every((body) => body.includes('\"max_tokens\":512'))).toBeTrue();
-    expect(requestBodies[3]).toContain('\"max_tokens\":2048');
+    expect(tldrBody).toContain('\"max_tokens\":2048');
   });
 
   it("generates paper TLDRs concurrently with a bounded request count", async () => {
@@ -134,6 +135,66 @@ describe("createOpenAIEditorialSummarizer", () => {
     expect(maxActivePaperRequests).toBeLessThanOrEqual(4);
     releasePaperRequests?.();
     expect((await resultPromise).papers).toHaveLength(manyPapers.length);
+  });
+
+  it("starts paper TLDRs without waiting for the Today Brief", async () => {
+    let releaseHeadline: (() => void) | undefined;
+    const headlineGate = new Promise<void>((resolve) => {
+      releaseHeadline = resolve;
+    });
+    let tldrStarted = false;
+    stubFetch(
+      mock(async (_url: string, init?: RequestInit) => {
+        const body = String(init?.body);
+        const prompt = systemPrompt(body);
+        if (prompt.includes("academic research headline")) {
+          await headlineGate;
+        }
+        if (prompt.includes("TLDR summaries")) {
+          tldrStarted = true;
+        }
+        return generationResponse(successfulContent(body));
+      })
+    );
+
+    const resultPromise = createOpenAIEditorialSummarizer(summaryConfig)(papers, clusters);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const startedBeforeHeadlineCompleted = tldrStarted;
+    releaseHeadline?.();
+    await resultPromise;
+
+    expect(startedBeforeHeadlineCompleted).toBeTrue();
+  });
+
+  it("limits total concurrent generation requests across the digest", async () => {
+    const manyPapers = Array.from({ length: 8 }, (_, index) => ({
+      ...papers[0]!,
+      title: `Paper ${index}`,
+      url: `https://example.test/limited-paper-${index}`
+    }));
+    let releaseRequests: (() => void) | undefined;
+    const requestGate = new Promise<void>((resolve) => {
+      releaseRequests = resolve;
+    });
+    let activeRequests = 0;
+    let maxActiveRequests = 0;
+    stubFetch(
+      mock(async (_url: string, init?: RequestInit) => {
+        activeRequests += 1;
+        maxActiveRequests = Math.max(maxActiveRequests, activeRequests);
+        await requestGate;
+        activeRequests -= 1;
+        return generationResponse(successfulContent(String(init?.body)));
+      })
+    );
+
+    const resultPromise = createOpenAIEditorialSummarizer(summaryConfig)(manyPapers, clusters);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const observedPeak = maxActiveRequests;
+    releaseRequests?.();
+    await resultPromise;
+
+    expect(observedPeak).toBeLessThanOrEqual(4);
   });
 
   it("keeps successful TLDRs when a Today Brief field fails twice", async () => {

@@ -4,6 +4,7 @@ import type { InterestClusterSummary, RecommendedPaper } from "./types.js";
 
 const MAX_ABSTRACT_INPUT_LENGTH = 4_000;
 const PAPER_TLDR_CONCURRENCY = 4;
+const GENERATION_REQUEST_CONCURRENCY = 4;
 const GENERATION_REQUEST_TIMEOUT_MS = 60_000;
 const BRIEFING_META_LANGUAGE = [
   /\b(?:this|the) (?:brief|briefing|digest|newsletter)\b/iu,
@@ -157,6 +158,26 @@ async function requestGeneration(
   return content;
 }
 
+type GenerationRequest = typeof requestGeneration;
+
+function createGenerationRequestLimiter(maxConcurrent: number): GenerationRequest {
+  let activeRequests = 0;
+  const waiters: Array<() => void> = [];
+
+  return async (...args) => {
+    if (activeRequests >= maxConcurrent) {
+      await new Promise<void>((resolve) => waiters.push(resolve));
+    }
+    activeRequests += 1;
+    try {
+      return await requestGeneration(...args);
+    } finally {
+      activeRequests -= 1;
+      waiters.shift()?.();
+    }
+  };
+}
+
 function headlineSystemPrompt(language: string): string {
   return `Write one conclusion-led academic research headline in ${language}. Use only the supplied sources. It may focus on one strong theme or paper. Use a complete sentence under 14 words, never a topic label or briefing language. Return only the headline as plain text.`;
 }
@@ -186,6 +207,7 @@ function todayBriefSource(
 }
 
 async function generateBriefField(
+  request: GenerationRequest,
   config: SummaryConfig,
   label: string,
   systemPrompt: string,
@@ -194,7 +216,7 @@ async function generateBriefField(
   validate: (value: string) => string
 ): Promise<string> {
   try {
-    return validate(plainTextResponse(await requestGeneration(config, systemPrompt, source, maxTokens), label));
+    return validate(plainTextResponse(await request(config, systemPrompt, source, maxTokens), label));
   } catch (error) {
     console.log(
       `[summary] Retrying Today Brief ${label} after failure: ${
@@ -203,7 +225,7 @@ async function generateBriefField(
     );
     return validate(
       plainTextResponse(
-        await requestGeneration(
+        await request(
           config,
           systemPrompt,
           `${source}\n\nCorrection: Return only a valid ${label} as plain text.`,
@@ -216,12 +238,14 @@ async function generateBriefField(
 }
 
 async function generateTodayBrief(
+  request: GenerationRequest,
   config: SummaryConfig,
   papers: RecommendedPaper[],
   interestClusters: InterestClusterSummary[]
 ): Promise<TodayBrief> {
   const source = todayBriefSource(papers, interestClusters);
   const headline = await generateBriefField(
+    request,
     config,
     "headline",
     headlineSystemPrompt(config.language),
@@ -231,6 +255,7 @@ async function generateTodayBrief(
   );
   const [overview, preheader] = await Promise.all([
     generateBriefField(
+      request,
       config,
       "overview",
       overviewSystemPrompt(config.language),
@@ -239,6 +264,7 @@ async function generateTodayBrief(
       (value) => researchSynthesis(value, "overview")
     ),
     generateBriefField(
+      request,
       config,
       "preheader",
       preheaderSystemPrompt(config.language),
@@ -251,20 +277,21 @@ async function generateTodayBrief(
 }
 
 async function generatePaperBrief(
+  request: GenerationRequest,
   config: SummaryConfig,
   paper: RecommendedPaper
 ): Promise<PaperBrief> {
   const systemPrompt = paperBriefSystemPrompt(config.language);
   const source = paperSource(paper);
   try {
-    return parsePaperBrief(await requestGeneration(config, systemPrompt, source), paper);
+    return parsePaperBrief(await request(config, systemPrompt, source), paper);
   } catch {
     console.log(`[summary] Retrying TLDR for "${paper.title}" in ${config.language}.`);
     const correction = hasMeaningfulAbstract(paper.abstract)
       ? `Return a valid ${config.language} TLDR grounded only in the supplied abstract.`
       : `Return a faithful ${config.language} introduction to the title. Do not copy the source title verbatim, and do not infer details beyond it.`;
     return parsePaperBrief(
-      await requestGeneration(
+      await request(
         config,
         systemPrompt,
         `${source}\n\nCorrection: ${correction}`
@@ -314,7 +341,8 @@ export function createOpenAIEditorialSummarizer(config: SummaryConfig): Summariz
       throw new Error("Cannot generate an editorial digest without papers.");
     }
 
-    const todayBrief = await generateTodayBrief(config, papers, interestClusters)
+    const request = createGenerationRequestLimiter(GENERATION_REQUEST_CONCURRENCY);
+    const todayBriefPromise = generateTodayBrief(request, config, papers, interestClusters)
       .catch((error) => {
         console.log(
           `[summary] Today Brief generation failed; keeping paper TLDRs: ${
@@ -323,12 +351,12 @@ export function createOpenAIEditorialSummarizer(config: SummaryConfig): Summariz
         );
         return null;
       });
-    const paperBriefs = await mapConcurrently(
+    const paperBriefsPromise = mapConcurrently(
       papers,
       PAPER_TLDR_CONCURRENCY,
       async (paper) => {
         try {
-          return await generatePaperBrief(config, paper);
+          return await generatePaperBrief(request, config, paper);
         } catch (error) {
           console.log(
             `[summary] TLDR generation failed for "${paper.title}" after retry: ${
@@ -339,6 +367,8 @@ export function createOpenAIEditorialSummarizer(config: SummaryConfig): Summariz
         }
       }
     );
+
+    const [todayBrief, paperBriefs] = await Promise.all([todayBriefPromise, paperBriefsPromise]);
 
     return { todayBrief, papers: paperBriefs };
   };

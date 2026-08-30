@@ -186,8 +186,7 @@ describe("renderEmail", () => {
     const digest = {
       todayBrief: {
         headline: "空间网络正在重塑可达性研究",
-        overview: "网络结构正从背景变量转变为可达性模型的核心输入。",
-        preheader: "首选论文直接建模城市交通网络。"
+        overview: "网络结构正从背景变量转变为可达性模型的核心输入。"
       },
       papers: [
         {
@@ -258,8 +257,7 @@ describe("renderEmail", () => {
     const html = renderEmail([paper], null, {
       todayBrief: {
         headline: "地理文本处理正在采用大型语言模型",
-        overview: "研究关注相对位置描述的地理编码。",
-        preheader: "复杂相对位置描述的地理编码。"
+        overview: "研究关注相对位置描述的地理编码。"
       },
       papers: [
         {

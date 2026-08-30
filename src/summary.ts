@@ -6,12 +6,25 @@ const MAX_ABSTRACT_INPUT_LENGTH = 4_000;
 const PAPER_TLDR_CONCURRENCY = 4;
 const GENERATION_REQUEST_CONCURRENCY = 4;
 const GENERATION_REQUEST_TIMEOUT_MS = 60_000;
+const MAX_HEADLINE_CJK_UNITS = 14;
+const MAX_HEADLINE_WORDS = 10;
+const MAX_OVERVIEW_CJK_UNITS = 32;
+const MAX_OVERVIEW_WORDS = 20;
 const BRIEFING_META_LANGUAGE = [
   /\b(?:this|the) (?:brief|briefing|digest|newsletter)\b/iu,
   /\b(?:today['’]s|these|the selected) papers\b/iu,
+  /\bpaper\s*\d+\b/iu,
+  /\bcandidate\s*\d+\b/iu,
   /\b(?:this|the) (?:email|recommendation|selection)\b/iu,
   /(?:本|这份|这个)(?:简报|摘要|邮件|推荐)/u,
-  /(?:今天|今日|这些|本期|所选)(?:的)?论文/u
+  /(?:今天|今日|这些|本期|所选)(?:的)?论文/u,
+  /(?:该|这个|上述)标题/u,
+  /(?:论文|文章)\s*\d+/u
+];
+const OVERVIEW_LIST_LANGUAGE = [
+  /\b(?:additionally|elsewhere|other (?:papers|studies)|also (?:covers|examines|explores))\b/iu,
+  /(?:此外|另外|其余|其他)(?:论文|研究|内容|主题)?/u,
+  /(?:还|也)(?:讨论|涵盖|介绍|关注)/u
 ];
 
 export type PaperBrief = {
@@ -23,7 +36,6 @@ export type PaperBrief = {
 export type TodayBrief = {
   headline: string;
   overview: string;
-  preheader: string;
 };
 
 export type EditorialDigest = {
@@ -63,6 +75,58 @@ function researchSynthesis(value: unknown, label: string): string {
   const text = requiredText(value, label);
   if (BRIEFING_META_LANGUAGE.some((pattern) => pattern.test(text))) {
     throw new Error(`Generation API returned ${label} with briefing meta-language.`);
+  }
+  return text;
+}
+
+function sharesLongPhrase(left: string, right: string): boolean {
+  const leftHan = left.match(/\p{Script=Han}/gu)?.join("") ?? "";
+  const rightHan = right.match(/\p{Script=Han}/gu)?.join("") ?? "";
+  const shorterHan = leftHan.length <= rightHan.length ? leftHan : rightHan;
+  const longerHan = leftHan.length <= rightHan.length ? rightHan : leftHan;
+  for (let index = 0; index <= shorterHan.length - 6; index += 1) {
+    if (longerHan.includes(shorterHan.slice(index, index + 6))) return true;
+  }
+
+  const leftWords = canonicalText(left).split(" ").filter(Boolean);
+  const rightText = ` ${canonicalText(right)} `;
+  for (let index = 0; index <= leftWords.length - 3; index += 1) {
+    if (rightText.includes(` ${leftWords.slice(index, index + 3).join(" ")} `)) return true;
+  }
+  return false;
+}
+
+function shortHeadline(value: unknown): string {
+  const text = researchSynthesis(value, "headline");
+  const hanCharacters = text.match(/\p{Script=Han}/gu)?.length ?? 0;
+  const nonHanWords = text
+    .replace(/\p{Script=Han}/gu, " ")
+    .match(/[\p{L}\p{N}]+/gu)?.length ?? 0;
+  const units = hanCharacters + nonHanWords;
+  const maxUnits = hanCharacters > 0 ? MAX_HEADLINE_CJK_UNITS : MAX_HEADLINE_WORDS;
+  if (units > maxUnits) {
+    throw new Error(`Generation API returned a headline over ${maxUnits} units.`);
+  }
+  return text;
+}
+
+function shortOverview(value: unknown, headline: string): string {
+  const text = researchSynthesis(value, "overview");
+  const hanCharacters = text.match(/\p{Script=Han}/gu)?.length ?? 0;
+  const nonHanWords = text
+    .replace(/\p{Script=Han}/gu, " ")
+    .match(/[\p{L}\p{N}]+/gu)?.length ?? 0;
+  const units = hanCharacters + nonHanWords;
+  const maxUnits = hanCharacters > 0 ? MAX_OVERVIEW_CJK_UNITS : MAX_OVERVIEW_WORDS;
+  if (units > maxUnits) {
+    throw new Error(`Generation API returned an overview over ${maxUnits} units.`);
+  }
+  const sentenceEndings = text.match(/[。！？!?]+|\.(?=\s+[A-Z]|$)/gu)?.length ?? 0;
+  if (sentenceEndings > 1 || /[;；•]/u.test(text) || OVERVIEW_LIST_LANGUAGE.some((pattern) => pattern.test(text))) {
+    throw new Error("Generation API returned a list-like overview.");
+  }
+  if (sharesLongPhrase(headline, text)) {
+    throw new Error("Generation API returned an overview that repeats the headline.");
   }
   return text;
 }
@@ -179,19 +243,17 @@ function createGenerationRequestLimiter(maxConcurrent: number): GenerationReques
 }
 
 function headlineSystemPrompt(language: string): string {
-  return `Write one conclusion-led academic research headline in ${language}. Use only the supplied sources. It may focus on one strong theme or paper. Use a complete sentence under 14 words, never a topic label or briefing language. Return only the headline as plain text.`;
+  return `Choose the most significant candidate. Write a very short ${language} headline as a subject–verb–object phrase, like “OpenAI shuts off Cursor” or “交通扩展改变出行”. Maximum: 10 English words or 14 Chinese characters. Return only the headline.`;
 }
 
 function overviewSystemPrompt(language: string): string {
-  return `Explain the supplied headline in ${language} using concrete information from the supplied sources. Use at most two sentences. Do not mention the email, briefing, recommendation, reader, or selected papers. Do not infer beyond title-only sources. Return only the overview as plain text.`;
+  return `Write one compact editorial line in ${language}. Add a fresh source-backed detail beyond the headline, using fresh wording. Aim for 12–24 Chinese characters or 8–16 English words. Return only the line.`;
 }
 
-function preheaderSystemPrompt(language: string): string {
-  return `Write one email preheader in ${language}, under 140 characters, grounded in the supplied headline and paper titles. Return only the preheader as plain text.`;
-}
-
-function paperBriefSystemPrompt(language: string): string {
-  return `You write concise one-sentence TLDR summaries for academic papers. Write the TLDR in ${language}. Use only the supplied source material and do not infer missing information. Return only the TLDR as plain text.`;
+function paperBriefSystemPrompt(language: string, hasAbstract: boolean): string {
+  return hasAbstract
+    ? `Write one short ${language} paper summary from the supplied title and abstract. State one supported study focus or finding in one sentence. Return plain text.`
+    : `Paraphrase the supplied title in one short ${language} paper summary using only concepts named in it. Mirror its scope and certainty. Return plain text.`;
 }
 
 function todayBriefSource(
@@ -204,6 +266,12 @@ function todayBriefSource(
   return `Reader interest clusters (aggregated labels only):\n${clusters}\n\n${papers
     .map((paper, index) => paperSource(paper, index))
     .join("\n\n")}`;
+}
+
+function headlineCandidatesSource(papers: RecommendedPaper[]): string {
+  return papers
+    .map((paper, index) => `Candidate ${index + 1}\nJournal: ${paper.journal}\nTitle: ${paper.title}`)
+    .join("\n\n");
 }
 
 async function generateBriefField(
@@ -223,12 +291,17 @@ async function generateBriefField(
         error instanceof Error ? error.message : String(error)
       }`
     );
+    const correction = label === "headline"
+      ? "Compress the headline into a subject–verb–object phrase like “交通扩展改变出行”. Maximum: 10 English words or 14 Chinese characters. Return only the headline."
+      : label === "overview"
+        ? "Compress to one clause. Target 16 Chinese characters or 12 English words, like “交通扩展重塑城市出行”. Return only the line."
+      : `Write a valid ${label} as plain text using the source rules.`;
     return validate(
       plainTextResponse(
         await request(
           config,
           systemPrompt,
-          `${source}\n\nCorrection: Return only a valid ${label} as plain text.`,
+          `${source}\n\nCorrection: ${correction}`,
           maxTokens
         ),
         label
@@ -244,36 +317,26 @@ async function generateTodayBrief(
   interestClusters: InterestClusterSummary[]
 ): Promise<TodayBrief> {
   const source = todayBriefSource(papers, interestClusters);
+  const headlineSource = headlineCandidatesSource(papers);
   const headline = await generateBriefField(
     request,
     config,
     "headline",
     headlineSystemPrompt(config.language),
-    source,
+    headlineSource,
     Math.min(config.maxTokens, 512),
-    (value) => researchSynthesis(value, "headline")
+    shortHeadline
   );
-  const [overview, preheader] = await Promise.all([
-    generateBriefField(
-      request,
-      config,
-      "overview",
-      overviewSystemPrompt(config.language),
-      `${source}\n\nHeadline: ${headline}`,
-      Math.min(config.maxTokens, 512),
-      (value) => researchSynthesis(value, "overview")
-    ),
-    generateBriefField(
-      request,
-      config,
-      "preheader",
-      preheaderSystemPrompt(config.language),
-      `Headline: ${headline}\n\nPaper titles:\n${papers.map((paper) => `- ${paper.title}`).join("\n")}`,
-      Math.min(config.maxTokens, 512),
-      (value) => compact(requiredText(value, "preheader"), 180)
-    )
-  ]);
-  return { headline, overview, preheader };
+  const overview = await generateBriefField(
+    request,
+    config,
+    "overview",
+    overviewSystemPrompt(config.language),
+    `${source}\n\nHeadline: ${headline}`,
+    Math.min(config.maxTokens, 512),
+    (value) => shortOverview(value, headline)
+  );
+  return { headline, overview };
 }
 
 async function generatePaperBrief(
@@ -281,15 +344,18 @@ async function generatePaperBrief(
   config: SummaryConfig,
   paper: RecommendedPaper
 ): Promise<PaperBrief> {
-  const systemPrompt = paperBriefSystemPrompt(config.language);
+  const systemPrompt = paperBriefSystemPrompt(
+    config.language,
+    hasMeaningfulAbstract(paper.abstract)
+  );
   const source = paperSource(paper);
   try {
     return parsePaperBrief(await request(config, systemPrompt, source), paper);
   } catch {
     console.log(`[summary] Retrying TLDR for "${paper.title}" in ${config.language}.`);
     const correction = hasMeaningfulAbstract(paper.abstract)
-      ? `Return a valid ${config.language} TLDR grounded only in the supplied abstract.`
-      : `Return a faithful ${config.language} introduction to the title. Do not copy the source title verbatim, and do not infer details beyond it.`;
+      ? `Write a valid ${config.language} TLDR grounded in the supplied abstract.`
+      : `Write a faithful ${config.language} introduction in fresh wording that stays within the title's stated scope.`;
     return parsePaperBrief(
       await request(
         config,

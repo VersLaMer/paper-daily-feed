@@ -19,12 +19,11 @@ const recommendation: RecommendedPaper = {
   interestCluster: { id: 3, labels: ["resilient urban mobility"] }
 };
 
-function summaryRequestKind(requestBody: string): "headline" | "overview" | "preheader" | "tldr" {
+function summaryRequestKind(requestBody: string): "headline" | "overview" | "tldr" {
   const payload = JSON.parse(requestBody) as { messages: Array<{ content: string }> };
   const prompt = payload.messages[0]?.content ?? "";
-  if (prompt.includes("academic research headline")) return "headline";
-  if (prompt.includes("Explain the supplied headline")) return "overview";
-  if (prompt.includes("email preheader")) return "preheader";
+  if (prompt.includes("subject–verb–object phrase")) return "headline";
+  if (prompt.includes("compact editorial line")) return "overview";
   return "tldr";
 }
 
@@ -192,9 +191,7 @@ describe("Recommendation Delivery", () => {
           ? "韧性街道值得优先关注"
           : kind === "overview"
             ? "街道尺度的空间结构揭示了交通系统的韧性差异。"
-            : kind === "preheader"
-              ? "从街道尺度理解交通与气候韧性。"
-              : "论文从街道尺度分析交通系统的气候韧性。";
+            : "论文从街道尺度分析交通系统的气候韧性。";
         return new Response(
           JSON.stringify({
             choices: [

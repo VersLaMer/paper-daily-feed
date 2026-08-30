@@ -188,7 +188,7 @@ export function renderEmail(
   const briefByUrl = new Map(
     papers.map((paper, index) => [paper.url, digest?.papers[index]] as const)
   );
-  const preheader = digest?.todayBrief?.preheader || fallbackPreheader(sortedPapers);
+  const preheader = digest?.todayBrief?.overview || fallbackPreheader(sortedPapers);
   const content =
     sortedPapers.length === 0
       ? `<tr><td class="paper-card text-secondary" style="background: #ffffff; padding: 24px; color: #424245; font-size: 17px; line-height: 1.5;">No recommended papers today.</td></tr>`

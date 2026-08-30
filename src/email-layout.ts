@@ -17,6 +17,7 @@ export const SHARED_EMAIL_STYLES = `
         .text-tertiary { color: #7d8590 !important; }
         .accent { color: #0a84ff !important; }
         .small-accent, .action-link { color: #0a84ff !important; }
+        .muted-link { color: #8e8e93 !important; }
       }
       [data-ogsc] .email-body, [data-ogsc] .page { background: #000000 !important; }
       [data-ogsc] .paper-card, [data-ogsc] .code-block { background: #1c1c1e !important; }
@@ -26,6 +27,7 @@ export const SHARED_EMAIL_STYLES = `
       [data-ogsc] .text-tertiary { color: #7d8590 !important; }
       [data-ogsc] .accent { color: #0a84ff !important; }
       [data-ogsc] .small-accent, [data-ogsc] .action-link { color: #0a84ff !important; }
+      [data-ogsc] .muted-link { color: #8e8e93 !important; }
       .action-link { text-decoration: underline !important; }
 `;
 
@@ -57,12 +59,17 @@ export function renderSharedEmailHeader(endLabel: string): string {
 }
 
 export function renderSharedEmailFooter(): string {
-  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%;">
+  return `<table role="presentation" width="40" cellpadding="0" cellspacing="0" border="0" style="width: 40px; margin: 0 0 15px 0;">
+                  <tr>
+                    <td class="border-color" style="border-top: 1px solid #e5e5e7; font-size: 0; line-height: 0;">&nbsp;</td>
+                  </tr>
+                </table>
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="width: 100%;">
                   <tr>
                     <td align="left" valign="middle" class="footer-credit text-tertiary" style="padding: 0; color: #86868b; font-size: 14px; line-height: 1.5; text-align: left;">Built with <a href="${packageMetadata.homepage}" class="accent" style="color: #007aff; font-weight: 700; text-decoration: none;">paper-daily-feed</a> by <a href="https://nehsgnail.github.io/" class="accent" style="color: #007aff; font-weight: 700; text-decoration: none;">nehSgnaiL</a>.</td>
                   </tr>
                   <tr>
-                    <td align="left" valign="middle" class="footer-action text-tertiary" style="padding: 6px 0 0 0; color: #86868b; font-size: 14px; line-height: 1.5; text-align: left;"><a href="${packageMetadata.homepage}#customization" style="color: inherit; text-decoration: underline;">Manage settings</a></td>
+                    <td align="left" valign="middle" class="footer-action text-tertiary" style="padding: 6px 0 0 0; color: #86868b; font-size: 14px; line-height: 1.5; text-align: left;"><a href="${packageMetadata.homepage}#customization" class="muted-link" style="color: #aeaeb2; text-decoration: underline;">Manage settings</a></td>
                   </tr>
                 </table>`;
 }

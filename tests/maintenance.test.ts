@@ -24,6 +24,7 @@ describe("renderMaintenanceEmail", () => {
     expect(html).toContain("font-size: 14px; font-weight: 400; letter-spacing: 0.06em;");
     expect(html).not.toContain("border: 1px solid #d9ebff");
     expect(html).toContain('class="maintenance-main"');
+    expect(html).toContain('border-top: 1px solid #e5e5e7;');
     expect(html).toContain("https://github.com/settings/personal-access-tokens/new");
     expect(html).toContain("https://github.com/reader/paper-daily-feed/settings/secrets/actions/new");
     expect(html).toContain("MAINTENANCE_SYNC_TOKEN");
@@ -36,7 +37,7 @@ describe("renderMaintenanceEmail", () => {
     expect(html).toContain('text-decoration: none;">paper-daily-feed</a>');
     expect(html).toContain('text-decoration: none;">nehSgnaiL</a>');
     expect(html).toContain(">Manage settings</a>");
-    expect(html).toContain('style="color: inherit; text-decoration: underline;">Manage settings</a>');
+    expect(html).toContain('class="muted-link" style="color: #aeaeb2; text-decoration: underline;">Manage settings</a>');
     expect(html).toContain(`${packageMetadata.homepage}#customization`);
     expect(html).not.toContain("Unsubscribe");
     expect(html).toContain(".header-meta { display: none !important; }");

@@ -119,28 +119,31 @@ describe("renderEmail", () => {
     expect(html).toContain('<p lang="zh-CN" class="text-tertiary"');
     expect(html).toContain("王维");
     expect(html).toContain(">一言</a>");
-    expect(html).toContain('style="color: inherit; text-decoration: underline;">一言</a>');
+    expect(html).toContain('class="muted-link" style="color: #aeaeb2; text-decoration: underline;">一言</a>');
     expect(html).toContain("山居秋暝");
     expect(html).toContain("https://hitokoto.cn?uuid=example");
     expect(html.indexOf("空山新雨后")).toBeGreaterThan(
       html.indexOf("A paper before the daily quotation")
     );
     expect(html.indexOf("空山新雨后")).toBeLessThan(html.indexOf("Built with"));
-    expect(html).toContain("AUG 25, 2026");
+    expect(html).toContain("AUG 25 2026");
+    expect(html).not.toContain("AUG 25, 2026");
     expect(html).toContain(
       'align="right" style="padding-bottom: 14px; color: #6e6e73; font-size: 14px; font-weight: 400; letter-spacing: 0.06em; white-space: nowrap;" class="header-meta text-tertiary"'
     );
-    expect(html.indexOf("AUG 25, 2026")).toBeLessThan(html.indexOf("空山新雨后"));
+    expect(html.indexOf("AUG 25 2026")).toBeLessThan(html.indexOf("空山新雨后"));
     expect(html).toContain('class="romance-copy-cell"');
     expect(html).toContain('align="left" class="romance-copy-cell"');
     expect(html).toContain("padding: 0; text-align: left;");
     expect(html).toContain("&rdquo;</p>");
     expect(html).toContain("letter-spacing: 0.02em; text-align: left;");
     expect(html).toContain('class="footer-credit text-tertiary"');
+    expect(html).toContain('width="40" cellpadding="0" cellspacing="0" border="0" style="width: 40px; margin: 0 0 15px 0;"');
+    expect(html).toContain('border-top: 1px solid #e5e5e7;');
     expect(html).toContain('class="accent" style="color: #007aff; font-weight: 700; text-decoration: none;">paper-daily-feed</a>');
     expect(html).toContain('class="accent" style="color: #007aff; font-weight: 700; text-decoration: none;">nehSgnaiL</a>');
     expect(html).toContain('class="footer-action text-tertiary"');
-    expect(html).toContain('style="color: inherit; text-decoration: underline;">Manage settings</a>');
+    expect(html).toContain('class="muted-link" style="color: #aeaeb2; text-decoration: underline;">Manage settings</a>');
     expect(html.indexOf("Built with")).toBeLessThan(html.indexOf("Manage settings"));
     expect(html).not.toContain("@media only screen and (max-width: 480px)");
     expect(html).not.toContain('colspan="3"');
@@ -231,7 +234,7 @@ describe("renderEmail", () => {
     expect(editorialHtml).not.toContain('class="text-tertiary" style="color: #6e6e73;"');
     expect(editorialHtml).not.toContain("Takeaway");
     expect(editorialHtml).not.toContain("Why this fits");
-    expect(editorialHtml).toContain("AUG 25, 2026");
+    expect(editorialHtml).toContain("AUG 25 2026");
     expect(editorialHtml.indexOf("Networks shape accessible cities")).toBeLessThan(
       editorialHtml.indexOf("A quiet thought between the brief and the papers.")
     );
@@ -239,7 +242,7 @@ describe("renderEmail", () => {
     expect(fallbackHtml).not.toContain('class="brief-label text-tertiary"');
     expect(fallbackHtml).not.toContain(">TLDR:</strong>");
     expect(fallbackHtml).not.toContain("Abstract:");
-    expect(fallbackHtml).toContain("AUG 25, 2026");
+    expect(fallbackHtml).toContain("AUG 25 2026");
   });
 
   it("renders only the title translation for a title-only paper brief", () => {

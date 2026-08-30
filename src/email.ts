@@ -46,6 +46,7 @@ function formatEditionDate(value: Date): string {
       year: "numeric",
       timeZone: "UTC"
     })
+    .replace(",", "")
     .toUpperCase();
 }
 
@@ -86,7 +87,7 @@ function renderRomance(romance: DailyRomance | null | undefined): string {
                         )}&rdquo;</p>
                         <p class="text-tertiary" style="margin: 7px 0 0 0; color: #86868b; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Arial, sans-serif; font-size: 14px; line-height: 1.45; letter-spacing: 0.02em; text-align: left;">&mdash;&nbsp;${romanceByline ? `${romanceByline} · ` : ""}<a href="${escapeHtml(
                           romance.sourceUrl
-                        )}" style="color: inherit; text-decoration: underline;">${escapeHtml(romance.sourceName)}</a></p>
+                        )}" class="muted-link" style="color: #aeaeb2; text-decoration: underline;">${escapeHtml(romance.sourceName)}</a></p>
                       </td>
                     </tr>
                   </table>`;

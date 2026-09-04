@@ -3456,6 +3456,18 @@
     {
       "fingerprint": "972659c4a4ed7ccd9e6625d867a462e3b6b35996ec679812193cef784cf36752",
       "deliveredAt": "2026-09-03T00:13:38.681Z"
+    },
+    {
+      "fingerprint": "40b6a0ed39af377287fef4ec975106548f8e64b3cf8e1794b8aec109e9bdef70",
+      "deliveredAt": "2026-09-04T00:04:39.169Z"
+    },
+    {
+      "fingerprint": "200877847afbf9502a867b5902585cbe1369c7dcf365521715a2650158af7714",
+      "deliveredAt": "2026-09-04T00:04:39.169Z"
+    },
+    {
+      "fingerprint": "8cdf25812729c267caa7ef9adbffad5798d540e5e93ae8c5034ba18da2937b3f",
+      "deliveredAt": "2026-09-04T00:04:39.169Z"
     }
   ]
 }

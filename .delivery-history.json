@@ -3760,6 +3760,46 @@
     {
       "fingerprint": "a1e04f9a33368b75f6c863c75016ec9efcc5f14ecadbbedb36648b07729780dc",
       "deliveredAt": "2026-09-12T00:17:31.558Z"
+    },
+    {
+      "fingerprint": "0600cc9ec45bb1e47988c26deea1898cc7beb8061543dfb4b6afdcc36ac9b2b3",
+      "deliveredAt": "2026-09-13T00:00:58.046Z"
+    },
+    {
+      "fingerprint": "f35b5805803b0baa6001fbf0064e02cc3905ec099f273ac0deb879bffc38731e",
+      "deliveredAt": "2026-09-13T00:00:58.046Z"
+    },
+    {
+      "fingerprint": "7eb1f7742af53bcdb12177f2b3b685db56fabd428ec62fc6265e9a0a0aef462a",
+      "deliveredAt": "2026-09-13T00:00:58.046Z"
+    },
+    {
+      "fingerprint": "51d32e36c4583ae5158446baacde5d6caac550e14b12a48a7c6b1d0eb40f51e1",
+      "deliveredAt": "2026-09-13T00:00:58.046Z"
+    },
+    {
+      "fingerprint": "eadda1fc225d4a8e3b96c01e4c946e6785244e4d131e8b9e842a23905cb5d064",
+      "deliveredAt": "2026-09-13T00:00:58.046Z"
+    },
+    {
+      "fingerprint": "f0cbad3eceefb028f001a2d05193dd0cc29c5129f79322bb6043be84ce8b2666",
+      "deliveredAt": "2026-09-13T00:00:58.046Z"
+    },
+    {
+      "fingerprint": "3d9921b0f3a121e1d78507b48b019f6382633fcedb6d1ba0951a98c920f20d76",
+      "deliveredAt": "2026-09-13T00:00:58.046Z"
+    },
+    {
+      "fingerprint": "d56d67765d70a7b4744f8092f14b0f84395dd3f1fbb88bc4ba51e1a74edd80a2",
+      "deliveredAt": "2026-09-13T00:00:58.046Z"
+    },
+    {
+      "fingerprint": "3f75d3b30e148e0624b5a4cab4cfb648eefe4f93895baf4e1697ab87da62fbee",
+      "deliveredAt": "2026-09-13T00:00:58.046Z"
+    },
+    {
+      "fingerprint": "52744dd266cac3a6c0331477b0a197fffceca59eda7184d1bd1e891891956748",
+      "deliveredAt": "2026-09-13T00:00:58.046Z"
     }
   ]
 }
